@@ -17,7 +17,7 @@ PORTX_INFRASTRUCTURE=${PORTX_INFRASTRUCTURE:-''}
 # Create repo from template
 curl -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.baptiste-preview+json" "${API_URL_PREFIX}/repos/${ORG}/${TEMPLATE_REPO}/generate" -d '{"name":"'${REPO_NAME}'", "owner":"'${ORG}'", "private":true, "include_all_branches":true}';
 
-# Give internal portx teams permissions on the new repo
+# Give internal teams permissions on the new repo
 curl -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${PORTX_TENANT_FLUX_ADMINS}/repos/${ORG}/${REPO_NAME}" -d '{"permission":"admin"}';
 curl -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${PORTX_INFRASTRUCTURE}/repos/${ORG}/${REPO_NAME}" -d '{"permission":"admin"}';
 
