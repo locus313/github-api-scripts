@@ -45,17 +45,14 @@ limit_repo_pagination () {
 
 process_repos () {
   for PAGE in $(limit_repo_pagination); do
-  
     for i in $(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=full_name" | jq -r 'sort_by(.name) | .[] | .name'); do
-
-      echo "processing repo ${i}"
+      echo "Processing repo ${i}"
       
       # Give internal repo admin team permissions on the repo
-      curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${REPO_ADMIN}/repos/${ORG}/${i}" -d '{"permission":"admin"}';
-
-      # Add delay to prevent hitting github rate limit
-      sleep 5
+      curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${REPO_ADMIN}/repos/${ORG}/${i}" -d '{"permission":"admin"}'
       
+      # Add delay to prevent hitting GitHub rate limit
+      sleep 5
     done
   done
 }
