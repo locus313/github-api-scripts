@@ -39,8 +39,8 @@ GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 **Critical patterns:**
 - Use `${VARIABLE:-''}` for all env vars to provide empty defaults
 - Set `API_URL_PREFIX` and `GIT_URL_PREFIX` for GitHub Enterprise Server compatibility
-- Include `sleep 5` between API calls to avoid rate limits (see `github-add-repo-admin.sh`)
-- Use pagination helpers for org-level operations (pattern in `github-add-repo-admin.sh` lines 20-28)
+- Include `sleep 5` between API calls to avoid rate limits (see `github-add-repo-permissions.sh` line 99)
+- Use pagination helpers for org-level operations (pattern in `github-add-repo-permissions.sh` lines 45-51)
 - **ALWAYS validate required variables** with explicit `if [ -z "${VAR}" ]` checks before any API calls
 - **ALWAYS validate GITHUB_TOKEN** by calling `/user` endpoint and checking for 200 status code
 - Use `curl -s -o /dev/null -w "%{http_code}"` pattern to check HTTP status codes
@@ -62,7 +62,7 @@ done
 ```
 
 ### Rate Limiting
-**Always include `sleep 5`** between repository-level operations to stay under GitHub's rate limits. See `github-add-repo-admin.sh` line 40.
+**Always include `sleep 5`** between repository-level operations to stay under GitHub's rate limits. See `github-add-repo-permissions.sh` line 99 or `github-repo-from-template.sh` lines 77, 83.
 
 ### Authentication Headers
 - Use `Bearer` token for enterprise endpoints: `-H "Authorization: Bearer ${GITHUB_TOKEN}"`
@@ -86,10 +86,12 @@ All scripts follow this validation sequence:
 
 ## Script-Specific Behaviors
 
-### `github-add-repo-admin`
-- Grants team admin permissions to ALL repos in an org
+### `github-add-repo-permissions`
+- Grants team permissions to ALL repos in an org across 5 permission levels
 - Uses pagination + 5-second delay between repos
-- Variable: `REPO_ADMIN` is a **team slug** (not team name)
+- Variables: `REPO_ADMIN`, `REPO_MAINTAIN`, `REPO_PUSH`, `REPO_TRIAGE`, `REPO_PULL` (all accept **space-separated team slugs**)
+- At least one permission level variable must be set
+- Loops through teams with helper function `apply_team_permissions()`
 
 ### `github-repo-from-template`
 - `REPO_ADMIN` and `REPO_WRITE` are **space-separated lists** of team slugs

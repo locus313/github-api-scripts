@@ -89,29 +89,47 @@ Scripts use environment variables for configuration. Common variables include:
 
 Each script is a self-contained utility designed for a specific task. Navigate to the script's directory, set the required environment variables, and execute.
 
-### Add Repository Admin
+### Add Repository Permissions
 
-**Script:** `github-add-repo-admin/github-add-repo-admin.sh`
+**Script:** `github-add-repo-permissions/github-add-repo-permissions.sh`
 
-Grants a team admin permissions across all repositories in an organization. Useful for ensuring platform or operations teams have access to all repos.
+Grants team permissions across all repositories in an organization. Supports multiple permission levels (admin, maintain, push, triage, pull) and multiple teams per permission level.
 
 **Required variables:**
 ```bash
 export GITHUB_TOKEN="your_token"
 export ORG="your-org"
-export REPO_ADMIN="platform-team"  # Team slug, not display name
+
+# Set one or more permission levels (space-separated team slugs)
+export REPO_ADMIN="platform-team ops-team"      # Admin permissions
+export REPO_MAINTAIN="maintainers"              # Maintain permissions
+export REPO_PUSH="developers contributors"      # Write/push permissions
+export REPO_TRIAGE="support-team"               # Triage permissions
+export REPO_PULL="external-auditors"            # Read/pull permissions
 ```
 
 **Usage:**
 ```bash
-cd github-add-repo-admin
-./github-add-repo-admin.sh
+cd github-add-repo-permissions
+./github-add-repo-permissions.sh
 ```
 
 **What it does:**
 - Retrieves all repositories in the organization (paginated)
-- Grants the specified team admin permissions on each repository
+- Grants permissions to specified teams based on permission level
+- Supports multiple teams per permission level (space-separated)
+- Processes all five GitHub permission levels: admin, maintain, push, triage, pull
 - Includes 5-second delays between repos to avoid rate limits
+
+**Permission levels:**
+- `admin` - Full repository access including settings and team management
+- `maintain` - Repository management without admin privileges
+- `push` - Read and write access to code
+- `triage` - Read access plus ability to manage issues and pull requests
+- `pull` - Read-only access to code
+
+> [!NOTE]
+> At least one permission level must be set. Team slugs should be lowercase and hyphenated (e.g., "Platform Team" → `platform-team`).
 
 ---
 
