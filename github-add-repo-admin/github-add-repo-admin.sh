@@ -1,4 +1,4 @@
-#!/usr/bin/env /bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 ###
@@ -16,9 +16,9 @@ if [ -z "${GITHUB_TOKEN}" ]; then
 fi
 
 # Validate GITHUB_TOKEN by calling GitHub API
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" "${API_URL_PREFIX}/user")
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
 
-if [ "$RESPONSE" -ne 200 ]; then
+if [ "${RESPONSE}" -ne 200 ]; then
   echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
   exit 1
 fi
