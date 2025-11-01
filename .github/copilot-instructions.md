@@ -4,7 +4,7 @@
 
 This is a collection of **standalone bash automation scripts** for GitHub organization administration. Each script lives in its own directory with a single `.sh` file. Scripts use `curl` + `jq` to interact with the GitHub REST API v3.
 
-**Key principle:** Scripts are independent, self-contained utilities—not a unified codebase. There's no shared library or common framework.
+**Key principle:** Scripts are independent, self-contained utilities—not a unified codebase. There's no shared library or common framework. Each script is a complete, self-validating executable that manages its own error handling and input validation.
 
 ## Architecture Pattern
 
@@ -41,6 +41,10 @@ GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 - Set `API_URL_PREFIX` and `GIT_URL_PREFIX` for GitHub Enterprise Server compatibility
 - Include `sleep 5` between API calls to avoid rate limits (see `github-add-repo-admin.sh`)
 - Use pagination helpers for org-level operations (pattern in `github-add-repo-admin.sh` lines 20-28)
+- **ALWAYS validate required variables** with explicit `if [ -z "${VAR}" ]` checks before any API calls
+- **ALWAYS validate GITHUB_TOKEN** by calling `/user` endpoint and checking for 200 status code
+- Use `curl -s -o /dev/null -w "%{http_code}"` pattern to check HTTP status codes
+- Exit with status code 1 on validation failures with descriptive error messages
 
 ## GitHub API Patterns
 
@@ -65,6 +69,21 @@ done
 - Use `token` for standard API: `-H "Authorization: token ${GITHUB_TOKEN}"`
 - Include API version when specified: `-H "X-GitHub-Api-Version: 2022-11-28"`
 
+### Accept Headers (Media Types)
+Different endpoints require specific Accept headers:
+- Template generation: `application/vnd.github.baptiste-preview+json`
+- Timeline events: `application/vnd.github.mockingbird-preview+json`
+- Issue reactions: `application/vnd.github.mercy-preview+json`
+- Repository visibility: `application/vnd.github.nebula-preview+json`
+- Standard operations: `application/vnd.github.v3+json`
+
+### Error Handling Pattern
+All scripts follow this validation sequence:
+1. Check all required env vars are non-empty (exit with descriptive message if missing)
+2. Validate token by calling API `/user` endpoint (exit if not 200 status)
+3. Validate additional tokens if used (e.g., `CD_GITHUB_TOKEN`)
+4. Proceed with main logic only after all validations pass
+
 ## Script-Specific Behaviors
 
 ### `github-add-repo-admin`
@@ -76,16 +95,30 @@ done
 - `REPO_ADMIN` and `REPO_WRITE` are **space-separated lists** of team slugs
 - Automatically accepts collaborator invite using `CD_GITHUB_TOKEN` (a separate token for the CD user)
 - Permission mapping: `admin` = admin, `push` = write access
+- Retrieves invite ID via `/user/repository_invitations` and accepts via PATCH request
+- Creates repo with `private: true` and `include_all_branches: true` by default
 
 ### `github-import-repo`
 - Performs **bare clone** + mirror push (full git history)
 - Takes 2 positional args: `$1=SRC_REPO`, `$2=DEST_REPO`
 - Cleans up local `.git` directory after mirroring
+- Creates new repo with `visibility: internal`
+- Grants admin permissions to `OWNER_USERNAME` on destination repo
+- Requires git to be installed and accessible in PATH
 
 ### `github-monthly-issues-report`
 - Generates HTML output to `output.txt` (not stdout)
 - Creates temporary `test.json` file (cleaned up at end)
 - Hardcoded label filter: `Linked%20[AC]` (URL-encoded)
+- Filters issues by creation date between `MONTH_START` and `MONTH_END`
+- Uses timeline API to track who applied labels
+- Aggregates statistics and sorts by count (descending)
+
+### `github-get-consumed-licenses`
+- Uses **Bearer token** authentication (different from other scripts)
+- Requires enterprise-level token scope (`read:enterprise`)
+- Calls `/enterprises/{ENTERPRISE}/consumed-licenses` endpoint
+- Outputs two metrics: seats consumed and seats purchased
 
 ## Development Guidelines
 

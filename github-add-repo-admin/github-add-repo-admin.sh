@@ -1,12 +1,11 @@
-#!/usr/bin/env bash
+#!/usr/bin/env /bin/bash
 set -euo pipefail
 
-###
-# GLOBAL VARIABLES
-###
+### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
+GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 REPO_ADMIN=${REPO_ADMIN:-''}
 
 # Check if GITHUB_TOKEN is set

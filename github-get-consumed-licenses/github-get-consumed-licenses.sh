@@ -1,9 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env /bin/bash
 set -euo pipefail
 
-###
-# GLOBAL VARIABLES
-###
+### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ENTERPRISE=${ENTERPRISE:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
@@ -17,6 +15,14 @@ fi
 # Check if ENTERPRISE is set
 if [ -z "${ENTERPRISE}" ]; then
   echo "ENTERPRISE is empty. Please set your enterprise and try again"
+  exit 1
+fi
+
+# Validate GITHUB_TOKEN by calling GitHub API
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
+
+if [ "${RESPONSE}" -ne 200 ]; then
+  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
   exit 1
 fi
 

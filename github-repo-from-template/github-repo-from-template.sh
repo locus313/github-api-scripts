@@ -1,12 +1,11 @@
-#!/usr/bin/env bash
+#!/usr/bin/env /bin/bash
 set -euo pipefail
 
-###
-# GLOBAL VARIABLES
-###
+### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
+GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 TEMPLATE_REPO=${TEMPLATE_REPO:-''}
 REPO_NAME=${1:-''}
 CD_USERNAME=${CD_USERNAME:-''}
@@ -72,10 +71,14 @@ curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: applicatio
 # Give internal teams permissions on the new repo
 for ADMIN_TEAM in ${REPO_ADMIN}; do
     curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${ADMIN_TEAM}/repos/${ORG}/${REPO_NAME}" -d '{"permission":"admin"}'
+    # Add delay to prevent hitting github rate limit
+    sleep 5
 done
 
 for WRITE_TEAM in ${REPO_WRITE}; do
     curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${WRITE_TEAM}/repos/${ORG}/${REPO_NAME}" -d '{"permission":"push"}'
+    # Add delay to prevent hitting github rate limit
+    sleep 5
 done
 
 # Give cd user write permissions on the new repo
