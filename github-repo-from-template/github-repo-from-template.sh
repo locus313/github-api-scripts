@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###
-## GLOBAL VARIABLES
+# GLOBAL VARIABLES
 ###
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
@@ -11,12 +11,36 @@ TEMPLATE_REPO=${TEMPLATE_REPO:-''}
 REPO_NAME=${1:-''}
 CD_USERNAME=${CD_USERNAME:-''}
 CD_GITHUB_TOKEN=${CD_GITHUB_TOKEN:-''}
-REPO_ADMIN=${REPO_ADMIN:-'admins example'}
-REPO_WRITE=${REPO_WRITE:-'write example2'}
+REPO_ADMIN=${REPO_ADMIN:-''}
+REPO_WRITE=${REPO_WRITE:-''}
 
 # Check if GITHUB_TOKEN is set
 if [ -z "${GITHUB_TOKEN}" ]; then
   echo "GITHUB_TOKEN is empty. Please set your token and try again"
+  exit 1
+fi
+
+# Check if ORG is set
+if [ -z "${ORG}" ]; then
+  echo "ORG is empty. Please set your organization and try again"
+  exit 1
+fi
+
+# Check if TEMPLATE_REPO is set
+if [ -z "${TEMPLATE_REPO}" ]; then
+  echo "TEMPLATE_REPO is empty. Please set your template repository and try again"
+  exit 1
+fi
+
+# Check if REPO_NAME is set
+if [ -z "${REPO_NAME}" ]; then
+  echo "REPO_NAME is empty. Please provide repository name as first argument"
+  exit 1
+fi
+
+# Check if CD_USERNAME is set
+if [ -z "${CD_USERNAME}" ]; then
+  echo "CD_USERNAME is empty. Please set your CD username and try again"
   exit 1
 fi
 

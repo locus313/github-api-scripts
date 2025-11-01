@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###
-## GLOBAL VARIABLES
+# GLOBAL VARIABLES
 ###
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
@@ -15,6 +15,18 @@ if [ -z "${GITHUB_TOKEN}" ]; then
   exit 1
 fi
 
+# Check if ORG is set
+if [ -z "${ORG}" ]; then
+  echo "ORG is empty. Please set your organization and try again"
+  exit 1
+fi
+
+# Check if REPO_ADMIN is set
+if [ -z "${REPO_ADMIN}" ]; then
+  echo "REPO_ADMIN is empty. Please set your team slug and try again"
+  exit 1
+fi
+
 # Validate GITHUB_TOKEN by calling GitHub API
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
 
@@ -24,7 +36,7 @@ if [ "${RESPONSE}" -ne 200 ]; then
 fi
 
 get_repo_pagination () {
-    repo_pages=$(curl -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
+    repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
     echo "${repo_pages:-1}"
 }
 
@@ -35,12 +47,12 @@ limit_repo_pagination () {
 process_repos () {
   for PAGE in $(limit_repo_pagination); do
   
-    for i in $(curl -H "Authorization: token ${GITHUB_TOKEN}" -s "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=full_name" | jq -r 'sort_by(.name) | .[] | .name'); do
+    for i in $(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=full_name" | jq -r 'sort_by(.name) | .[] | .name'); do
 
       echo "processing repo ${i}"
       
       # Give internal repo admin team permissions on the repo
-      curl -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${REPO_ADMIN}/repos/${ORG}/${i}" -d '{"permission":"admin"}';
+      curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${REPO_ADMIN}/repos/${ORG}/${i}" -d '{"permission":"admin"}';
 
       # Add delay to prevent hitting github rate limit
       sleep 5

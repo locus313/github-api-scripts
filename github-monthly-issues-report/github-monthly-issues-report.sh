@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###
-## GLOBAL VARIABLES
+# GLOBAL VARIABLES
 ###
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
@@ -17,6 +17,30 @@ if [ -z "${GITHUB_TOKEN}" ]; then
   exit 1
 fi
 
+# Check if ORG is set
+if [ -z "${ORG}" ]; then
+  echo "ORG is empty. Please set your organization and try again"
+  exit 1
+fi
+
+# Check if REPO is set
+if [ -z "${REPO}" ]; then
+  echo "REPO is empty. Please set your repository and try again"
+  exit 1
+fi
+
+# Check if MONTH_START is set
+if [ -z "${MONTH_START}" ]; then
+  echo "MONTH_START is empty. Please set your start date (YYYY-MM-DD) and try again"
+  exit 1
+fi
+
+# Check if MONTH_END is set
+if [ -z "${MONTH_END}" ]; then
+  echo "MONTH_END is empty. Please set your end date (YYYY-MM-DD) and try again"
+  exit 1
+fi
+
 # Validate GITHUB_TOKEN by calling GitHub API
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
 
@@ -26,7 +50,7 @@ if [ "${RESPONSE}" -ne 200 ]; then
 fi
 
 get_public_pagination () {
-    public_pages=$(curl -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
+    public_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
     echo "${public_pages:-1}"
 }
 
@@ -36,9 +60,9 @@ limit_public_pagination () {
 
 repo_issues () {
   for PAGE in $(limit_public_pagination); do
-      for i in $(curl -H "Authorization: token ${GITHUB_TOKEN}" -s "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&page=${PAGE}&per_page=100" | jq -r 'map(select(.created_at | . >= "'"${MONTH_START}"'T00:00" and . <= "'"${MONTH_END}"'T23:59")) | sort_by(.number) | .[] | .number'); do
-        ISSUE_PAYLOAD=$(curl -H "Authorization: token ${GITHUB_TOKEN}" -s "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}" -H "Accept: application/vnd.github.mercy-preview+json")
-        ISSUE_TIMELINE_PAYLOAD=$(curl -H "Authorization: token ${GITHUB_TOKEN}" -s "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}/timeline" -H "Accept: application/vnd.github.mockingbird-preview+json" | jq -r '.[] | select(.label.name=="Linked [AC]" or .label.name=="linked")')
+      for i in $(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&page=${PAGE}&per_page=100" | jq -r 'map(select(.created_at | . >= "'"${MONTH_START}"'T00:00" and . <= "'"${MONTH_END}"'T23:59")) | sort_by(.number) | .[] | .number'); do
+        ISSUE_PAYLOAD=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}" -H "Accept: application/vnd.github.mercy-preview+json")
+        ISSUE_TIMELINE_PAYLOAD=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}/timeline" -H "Accept: application/vnd.github.mockingbird-preview+json" | jq -r '.[] | select(.label.name=="Linked [AC]" or .label.name=="linked")')
         
         ISSUE_AUTHOR=$(echo "${ISSUE_PAYLOAD}" | jq -r .user.login)
         ISSUE_TITLE=$(echo "${ISSUE_PAYLOAD}" | jq -r .title | tr '"' "'")
