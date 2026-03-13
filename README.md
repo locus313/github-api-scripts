@@ -37,10 +37,11 @@ This toolkit provides ready-to-use automation scripts for GitHub organization ad
 
 ### Prerequisites
 
-- **bash** 4+ 
+- **bash** 4+
 - **[curl](https://curl.se)** - HTTP client for API requests
 - **[jq](https://stedolan.github.io/jq)** - Command-line JSON processor
 - **[git](https://git-scm.com)** - For repository operations (required by some scripts)
+- **[gh](https://cli.github.com)** - GitHub CLI (required by `github-organize-stars`)
 - **GitHub Personal Access Token** with appropriate scopes
 
 ### Installation
@@ -260,6 +261,50 @@ Total seats purchased: 200
 
 > [!IMPORTANT]
 > This script requires an enterprise-level token with `read:enterprise` scope. Organization tokens will not work.
+
+---
+
+### Organize Starred Repositories
+
+**Script:** `github-organize-stars/github-organize-stars.sh`
+
+Fetches all your starred repositories and organizes them into GitHub Lists using customizable categorization rules.
+
+**Prerequisites:**
+- **[gh](https://cli.github.com)** - GitHub CLI (authenticated via `gh auth login`)
+- **[jq](https://stedolan.github.io/jq)** - Command-line JSON processor
+
+**Usage:**
+```bash
+cd github-organize-stars
+./github-organize-stars.sh              # Interactive (shows plan, asks to confirm)
+./github-organize-stars.sh --dry-run    # Preview only, no changes made
+./github-organize-stars.sh -y           # Skip confirmation prompt
+./github-organize-stars.sh --show-repos # Also list repo names in each category
+./github-organize-stars.sh --no-cache   # Force re-fetch stars from GitHub
+```
+
+**What it does:**
+- Fetches all starred repositories via the GraphQL API (paginated)
+- Categorizes each repo by primary language, GitHub topics, and repo name keywords
+- Creates new GitHub Lists and adds repos in batches of 25
+- Caches fetched stars locally at `~/.cache/gh-star-organizer/stars.json` to speed up re-runs
+- Shows a categorization plan and prompts for confirmation before making changes
+
+**Customizing categories:**
+
+Edit the `RULES` array in the script. Each rule is a `|`-delimited string:
+```
+"List Name|LANGUAGES|TOPICS|NAME_KEYWORDS"
+```
+- `LANGUAGES` — comma-separated primary language names (case-insensitive)
+- `TOPICS` — comma-separated GitHub topic slugs
+- `NAME_KEYWORDS` — comma-separated substrings matched against the repo name
+
+The **first matching rule wins**, so order matters. Place more specific rules (e.g., AI) before general ones (e.g., Security).
+
+> [!NOTE]
+> This script uses the `gh` CLI for all API calls (GraphQL) rather than `curl`. Ensure you are authenticated via `gh auth login` before running.
 
 ## Best Practices
 
