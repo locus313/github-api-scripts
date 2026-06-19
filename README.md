@@ -93,7 +93,7 @@ Each script is a self-contained utility designed for a specific task. Navigate t
 
 - `org-admin/`: `github-add-repo-collaborators-by-pattern`, `github-add-repo-permissions`, `github-archive-old-repos`, `github-auto-repo-creation`, `github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-get-repo-list`, `github-import-repo`, `github-migrate-internal-repos-to-private`, `github-repo-from-template`
 - `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`
-- `reporting/`: `github-monthly-issues-report`
+- `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`
 - `personal/`: `github-organize-stars`
 
 ### Add Repository Permissions
@@ -233,6 +233,92 @@ cd reporting/github-monthly-issues-report
 
 > [!NOTE]
 > This script includes a hardcoded label filter. Edit the script to modify the filter criteria.
+
+---
+
+### Repository Permissions Report
+
+**Script:** `reporting/github-repo-permissions-report/github-repo-permissions-report.sh`
+
+Exports repository user/team permissions to CSV and identifies who can bypass pull request approval requirements, from both branch protection rules and repository rulesets.
+
+**Prerequisites:**
+- **[gh](https://cli.github.com)** — GitHub CLI (authenticated via `gh auth login`)
+- **[jq](https://stedolan.github.io/jq)** — JSON processor
+
+**Usage:**
+```bash
+cd reporting/github-repo-permissions-report
+./github-repo-permissions-report.sh -r OWNER/REPO
+./github-repo-permissions-report.sh -r OWNER/REPO -b main -o report.csv
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|----------|
+| `-r, --repo OWNER/REPO` | Target repository (required) | — |
+| `-b, --branch NAME` | Branch to evaluate | Repository default branch |
+| `-o, --output FILE` | Output CSV path | `OWNER-REPO-permissions-BRANCH-YYYYMMDD.csv` |
+
+**What it does:**
+- Fetches all collaborators and teams with repository access
+- Fetches branch protection rules and repository rulesets
+- Identifies every principal that can bypass PR approval requirements
+- Produces a CSV with two record types: `permission` (all users/teams) and `bypass_actor` (explicit bypass entries)
+
+> [!NOTE]
+> Uses the `gh` CLI for all API calls. Authenticate via `gh auth login` before running.
+
+---
+
+### Copilot Enterprise Report
+
+**Script:** `reporting/github-copilot-report/github-copilot-report.sh`
+
+Generates a GitHub Copilot Enterprise licence and usage report. Shows every licensed user, their plan type, pool credit contribution, and actual AI credit consumption for the current billing month. Optionally enriches data with Entra ID department information.
+
+**Prerequisites:**
+- **[gh](https://cli.github.com)** — GitHub CLI authenticated with `read:enterprise` and `manage_billing:enterprise` scopes
+- **[az](https://learn.microsoft.com/en-us/cli/azure/)** — Azure CLI (optional, for Entra ID department enrichment)
+- **[jq](https://stedolan.github.io/jq)** — JSON processor
+
+**Required variables:**
+```bash
+export GITHUB_ENTERPRISE="your-enterprise-slug"
+
+# Optional: Entra ID UPN domain for users without a public GitHub email
+export UPN_DOMAIN="example.com"        # e.g. 'john_example' → john@example.com
+
+# Optional: override the credits-per-seat value shown in your billing portal
+export CREDITS_PER_SEAT_OVERRIDE="1900"
+```
+
+**Usage:**
+```bash
+cd reporting/github-copilot-report
+
+# Authenticate first
+gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"
+az login   # optional, for department enrichment
+
+./github-copilot-report.sh -e YOUR-ENTERPRISE
+./github-copilot-report.sh -e YOUR-ENTERPRISE -d example.com
+./github-copilot-report.sh -e YOUR-ENTERPRISE --no-entra
+```
+
+**What it does:**
+- Fetches all Copilot seats across the enterprise (deduplicated by user)
+- Fetches per-user AI credit consumption for the current billing month
+- Fetches enterprise-level model usage metrics (last 28 days)
+- Optionally enriches each user with Entra ID department and job title via `az rest`
+- Outputs a CSV and a formatted console summary with department breakdown and model usage tables
+
+> [!IMPORTANT]
+> Requires an enterprise owner or billing manager token. Run `gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"` before executing.
+
+> [!NOTE]
+> Uses the `gh` CLI and (optionally) the `az` CLI. The Entra ID enrichment is skipped automatically if `az` is not logged in, or can be disabled with `--no-entra`.
 
 ---
 
