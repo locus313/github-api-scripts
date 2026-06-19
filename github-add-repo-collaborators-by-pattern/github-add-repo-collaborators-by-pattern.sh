@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ###
 ## GLOBAL VARIABLES
 ###
@@ -31,23 +35,12 @@ limit_repo_pagination() {
 }
 
 validate() {
-  if [ -z "${GITHUB_TOKEN}" ] || [ -z "${ORG}" ] || [ -z "${COLLABORATORS}" ] || [ -z "${REPO_NAME_REGEX}" ]; then
-    echo "Error: missing required variable(s)."
-    usage
-    exit 1
-  fi
-
-  if ! command -v jq > /dev/null 2>&1; then
-    echo "Error: jq is required but not installed."
-    exit 1
-  fi
-
-  local auth_status
-  auth_status=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-  if [ "${auth_status}" -ne 200 ]; then
-    echo "Error: invalid GITHUB_TOKEN or insufficient permissions (HTTP ${auth_status})."
-    exit 1
-  fi
+  require_env_var GITHUB_TOKEN "GitHub token"
+  require_env_var ORG "GitHub organization"
+  require_env_var COLLABORATORS "Collaborators list"
+  require_env_var REPO_NAME_REGEX "Repo name regex"
+  require_command jq
+  validate_github_token
 }
 
 get_matching_repos() {

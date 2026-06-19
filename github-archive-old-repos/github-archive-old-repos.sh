@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ###
 ## CONFIGURATION
 ###
@@ -19,32 +23,9 @@ REPORT_DIR="$(dirname "$0")/reports"
 REPORT_FILE="${REPORT_DIR}/old_repos_${TIMESTAMP}.csv"
 TEMP_FILE=$(mktemp)
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 ###
 ## HELPER FUNCTIONS
 ###
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
 cleanup() {
     rm -f "$TEMP_FILE"
 }
@@ -56,35 +37,10 @@ trap cleanup EXIT
 ###
 validate_environment() {
     print_status "Validating environment..."
-    
-    # Check if GITHUB_TOKEN is set
-    if [ -z "${GITHUB_TOKEN}" ]; then
-        print_error "GITHUB_TOKEN is empty. Please set your token and try again"
-        exit 1
-    fi
-
-    if [ -z "${ORG}" ]; then
-        print_error "ORG is empty. Please set ORG and try again"
-        exit 1
-    fi
-    
-    # Check if jq is installed
-    if ! command -v jq &> /dev/null; then
-        print_error "jq is not installed. Please install jq for JSON parsing."
-        print_status "Install on macOS: brew install jq"
-        print_status "Install on Ubuntu/Debian: sudo apt-get install jq"
-        exit 1
-    fi
-    
-    # Validate GITHUB_TOKEN by calling GitHub API
-    print_status "Validating GitHub token..."
-    RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" "${API_URL_PREFIX}/user")
-    
-    if [ "$RESPONSE" -ne 200 ]; then
-        print_error "GITHUB_TOKEN is invalid or does not have required permissions."
-        exit 1
-    fi
-    
+    require_env_var GITHUB_TOKEN "GitHub token"
+    require_env_var ORG "GitHub organization"
+    require_command jq
+    validate_github_token
     print_success "Environment validation complete"
 }
 

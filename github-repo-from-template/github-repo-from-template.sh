@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
@@ -18,63 +22,21 @@ usage() {
   echo "Required env vars: GITHUB_TOKEN, ORG, TEMPLATE_REPO, CD_USERNAME, CD_GITHUB_TOKEN"
 }
 
-# Check if GITHUB_TOKEN is set
-if [ -z "${GITHUB_TOKEN}" ]; then
-  echo "GITHUB_TOKEN is empty. Please set your token and try again"
-  exit 1
-fi
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+require_env_var TEMPLATE_REPO "Template repository"
 
-# Check if ORG is set
-if [ -z "${ORG}" ]; then
-  echo "ORG is empty. Please set your organization and try again"
-  exit 1
-fi
-
-# Check if TEMPLATE_REPO is set
-if [ -z "${TEMPLATE_REPO}" ]; then
-  echo "TEMPLATE_REPO is empty. Please set your template repository and try again"
-  exit 1
-fi
-
-# Check if REPO_NAME is set
 if [ -z "${REPO_NAME}" ]; then
-  echo "REPO_NAME is empty. Please provide repository name as first argument"
+  print_error "REPO_NAME is empty. Please provide repository name as first argument"
   usage
   exit 1
 fi
 
-# Check if CD_USERNAME is set
-if [ -z "${CD_USERNAME}" ]; then
-  echo "CD_USERNAME is empty. Please set your CD username and try again"
-  exit 1
-fi
-
-if ! command -v jq > /dev/null 2>&1; then
-  echo "jq is not installed. Please install jq and try again"
-  exit 1
-fi
-
-# Validate GITHUB_TOKEN by calling GitHub API
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${RESPONSE}" -ne 200 ]; then
-  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
-
-# Check if CD_GITHUB_TOKEN is set
-if [ -z "${CD_GITHUB_TOKEN}" ]; then
-  echo "CD_GITHUB_TOKEN is empty. Please set your token and try again"
-  exit 1
-fi
-
-# Validate CD_GITHUB_TOKEN by calling GitHub API
-CD_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${CD_GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${CD_RESPONSE}" -ne 200 ]; then
-  echo "Error: CD_GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
+require_env_var CD_USERNAME "CD username"
+require_command jq
+validate_github_token
+require_env_var CD_GITHUB_TOKEN "CD GitHub token"
+validate_token CD_GITHUB_TOKEN
 
 # Create repo from template
 CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.baptiste-preview+json" "${API_URL_PREFIX}/repos/${ORG}/${TEMPLATE_REPO}/generate" -d '{"name":"'"${REPO_NAME}"'", "owner":"'"${ORG}"'", "private":true, "include_all_branches":true}')

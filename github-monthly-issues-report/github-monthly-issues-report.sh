@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
@@ -10,48 +14,13 @@ GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 MONTH_START=${MONTH_START:-''}
 MONTH_END=${MONTH_END:-''}
 
-# Check if GITHUB_TOKEN is set
-if [ -z "${GITHUB_TOKEN}" ]; then
-  echo "GITHUB_TOKEN is empty. Please set your token and try again"
-  exit 1
-fi
-
-# Check if ORG is set
-if [ -z "${ORG}" ]; then
-  echo "ORG is empty. Please set your organization and try again"
-  exit 1
-fi
-
-# Check if REPO is set
-if [ -z "${REPO}" ]; then
-  echo "REPO is empty. Please set your repository and try again"
-  exit 1
-fi
-
-# Check if MONTH_START is set
-if [ -z "${MONTH_START}" ]; then
-  echo "MONTH_START is empty. Please set your start date (YYYY-MM-DD) and try again"
-  exit 1
-fi
-
-# Check if MONTH_END is set
-if [ -z "${MONTH_END}" ]; then
-  echo "MONTH_END is empty. Please set your end date (YYYY-MM-DD) and try again"
-  exit 1
-fi
-
-if ! command -v jq > /dev/null 2>&1; then
-  echo "jq is not installed. Please install jq and try again"
-  exit 1
-fi
-
-# Validate GITHUB_TOKEN by calling GitHub API
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${RESPONSE}" -ne 200 ]; then
-  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+require_env_var REPO "GitHub repository"
+require_env_var MONTH_START "Month start date (YYYY-MM-DD)"
+require_env_var MONTH_END "Month end date (YYYY-MM-DD)"
+require_command jq
+validate_github_token
 
 get_issue_pagination () {
     issue_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)

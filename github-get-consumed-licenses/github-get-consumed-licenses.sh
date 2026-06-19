@@ -1,35 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ENTERPRISE=${ENTERPRISE:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 
-# Check if GITHUB_TOKEN is set
-if [ -z "${GITHUB_TOKEN}" ]; then
-  echo "GITHUB_TOKEN is empty. Please set your token and try again"
-  exit 1
-fi
-
-# Check if ENTERPRISE is set
-if [ -z "${ENTERPRISE}" ]; then
-  echo "ENTERPRISE is empty. Please set your enterprise and try again"
-  exit 1
-fi
-
-if ! command -v jq > /dev/null 2>&1; then
-  echo "jq is not installed. Please install jq and try again"
-  exit 1
-fi
-
-# Validate GITHUB_TOKEN by calling GitHub API
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${RESPONSE}" -ne 200 ]; then
-  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ENTERPRISE "GitHub enterprise"
+require_command jq
+validate_github_token bearer
 
 get_licenses () {
   PAYLOAD=$(curl -s -L -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "${API_URL_PREFIX}/enterprises/${ENTERPRISE}/consumed-licenses")

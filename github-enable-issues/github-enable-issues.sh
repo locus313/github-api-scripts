@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ###
 ## GitHub Enable Issues
 ## Enables the Issues feature on every repository in a GitHub organization
@@ -31,20 +35,6 @@ API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 DRY_RUN=false
 
 ###
-## Color codes for output
-###
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-print_status()  { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-print_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
-
-###
 ## ARGUMENT PARSING
 ###
 while [[ $# -gt 0 ]]; do
@@ -73,27 +63,9 @@ done
 ###
 ## VALIDATION
 ###
-if [ -z "${GITHUB_TOKEN}" ]; then
-  print_error "GITHUB_TOKEN is empty. Please set your token and try again"
-  exit 1
-fi
-
-if [ -z "${ORG}" ]; then
-  print_error "ORG is empty. Please set the organization name and try again"
-  exit 1
-fi
-
-print_status "Validating GitHub token..."
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "${API_URL_PREFIX}/user")
-
-if [ "${HTTP_STATUS}" -ne 200 ]; then
-  print_error "GitHub token validation failed (HTTP ${HTTP_STATUS}). Check the token and its permissions."
-  exit 1
-fi
-
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+validate_github_token
 print_success "GitHub token validated"
 print_status "Organization : ${ORG}"
 if [ "${DRY_RUN}" = true ]; then

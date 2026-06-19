@@ -1,6 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+# Redirect status output to stderr — stdout is reserved for CSV data
+print_status()  { echo -e "${BLUE}[INFO]${NC}    $1" >&2; }
+print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1" >&2; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1" >&2; }
+print_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
+
 ###
 ## GitHub Enterprise Dockerfile Discovery
 ## Searches all organisations in a GitHub Enterprise account for Dockerfiles,
@@ -41,20 +50,6 @@ SUMMARY_CSV="${REPORT_DIR}/dockerfile_discovery_summary_${TIMESTAMP}.csv"
 SUMMARY_TXT="${REPORT_DIR}/dockerfile_discovery_summary_${TIMESTAMP}.txt"
 
 ###
-## Color codes for output
-###
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-print_status()  { echo -e "${BLUE}[INFO]${NC}    $1" >&2; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1" >&2; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1" >&2; }
-print_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
-
-###
 ## Temp file management
 ###
 TEMP_DIR=$(mktemp -d)
@@ -71,28 +66,10 @@ trap cleanup EXIT
 ###
 check_prerequisites() {
   print_status "Checking prerequisites..."
-
-  if ! command -v curl &>/dev/null; then
-    print_error "curl is required but not installed."
-    exit 1
-  fi
-
-  if ! command -v jq &>/dev/null; then
-    print_error "jq is required but not installed."
-    print_status "Install: sudo apt-get install jq  |  brew install jq"
-    exit 1
-  fi
-
-  if ! command -v base64 &>/dev/null; then
-    print_error "base64 is required but not installed."
-    exit 1
-  fi
-
-  if [ -z "${GITHUB_TOKEN}" ]; then
-    print_error "GITHUB_TOKEN is not set. Please export it and try again."
-    exit 1
-  fi
-
+  require_command curl
+  require_command jq
+  require_command base64
+  require_env_var GITHUB_TOKEN "GITHUB_TOKEN"
   print_success "Prerequisites OK"
 }
 

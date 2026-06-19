@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ###
 ## GLOBAL VARIABLES - Set default values for the required environment variables
 ###
@@ -13,41 +17,12 @@ REPO_NAMES=${REPO_NAMES:-''}
 ADMIN_TEAMS=${ADMIN_TEAMS:-''}
 REPO_OWNERS=${REPO_OWNERS:-''}
 
-if [ -z "${GITHUB_TOKEN}" ]
-then
-      echo "GITHUB_TOKEN is empty. Please set your token and try again"
-      exit 1
-fi
-
-if [ -z "${ORG}" ]
-then
-  echo "ORG is empty. Please set ORG and try again"
-  exit 1
-fi
-
-if [ -z "${REPO_NAMES}" ]
-then
-  echo "REPO_NAMES is empty. Please set at least one repository name and try again"
-  exit 1
-fi
-
-if [ -z "${REPO_OWNERS}" ]
-then
-  echo "REPO_OWNERS is empty. Please set at least one repository owner team and try again"
-  exit 1
-fi
-
-if ! command -v base64 > /dev/null 2>&1; then
-  echo "base64 is not installed. Please install base64 and try again"
-  exit 1
-fi
-
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${RESPONSE}" -ne 200 ]; then
-  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+require_env_var REPO_NAMES "Repo names list"
+require_env_var REPO_OWNERS "Repo owners list"
+require_command base64
+validate_github_token
 
 # Define the content of the CODEOWNERS file
 CODEOWNERS_CONTENT=$(cat << EOF

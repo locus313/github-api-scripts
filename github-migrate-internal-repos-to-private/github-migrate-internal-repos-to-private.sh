@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 # This script will obtain a list of repos, check if they are of "Internal" type, and if so, convert them to "Private" type.
 # You will need to set your github token as env var GITHUB_TOKEN
 
@@ -8,29 +12,10 @@ GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 
-if [ -z "${GITHUB_TOKEN}" ]
-then
-      echo "GITHUB_TOKEN is empty. Please set your token and try again"
-      exit 1
-fi
-
-if [ -z "${ORG}" ]
-then
-  echo "ORG is empty. Please set ORG and try again"
-  exit 1
-fi
-
-if ! command -v jq > /dev/null 2>&1; then
-  echo "jq is not installed. Please install jq and try again"
-  exit 1
-fi
-
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${RESPONSE}" -ne 200 ]; then
-  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+require_command jq
+validate_github_token
 
 get_repo_pagination () {
     repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?type=internal&per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)

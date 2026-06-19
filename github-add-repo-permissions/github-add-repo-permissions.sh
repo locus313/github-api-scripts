@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
 ### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
@@ -14,33 +18,9 @@ REPO_PUSH=${REPO_PUSH:-''}
 REPO_TRIAGE=${REPO_TRIAGE:-''}
 REPO_PULL=${REPO_PULL:-''}
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-
-# Check if GITHUB_TOKEN is set
-if [ -z "${GITHUB_TOKEN}" ]; then
-  print_error "GITHUB_TOKEN is empty. Please set your token and try again"
-  exit 1
-fi
-
-# Check if ORG is set
-if [ -z "${ORG}" ]; then
-  print_error "ORG is empty. Please set your organization and try again"
-  exit 1
-fi
-
-if ! command -v jq > /dev/null 2>&1; then
-  print_error "jq is not installed. Please install jq and try again"
-  exit 1
-fi
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+require_command jq
 
 # Check if at least one permission level is set
 if [ -z "${REPO_ADMIN}" ] && [ -z "${REPO_MAINTAIN}" ] && [ -z "${REPO_PUSH}" ] && [ -z "${REPO_TRIAGE}" ] && [ -z "${REPO_PULL}" ]; then
@@ -49,13 +29,7 @@ if [ -z "${REPO_ADMIN}" ] && [ -z "${REPO_MAINTAIN}" ] && [ -z "${REPO_PUSH}" ] 
   exit 1
 fi
 
-# Validate GITHUB_TOKEN by calling GitHub API
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
-
-if [ "${RESPONSE}" -ne 200 ]; then
-  print_error "GITHUB_TOKEN is invalid or does not have required permissions."
-  exit 1
-fi
+validate_github_token
 
 print_status "Organization: ${ORG}"
 
