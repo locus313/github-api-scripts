@@ -1,14 +1,25 @@
 #!/bin/bash
 # =============================================================================
-# GitHub Stars Organizer
-# Fetches all your starred repos and organizes them into GitHub Lists.
+# github-organize-stars.sh
+#
+# Fetches all your starred repositories and organises them into GitHub Lists
+# by topic category. Runs interactively by default, showing a plan before
+# making any changes.
 #
 # Usage:
-#   ./organize_stars.sh              # Interactive (shows plan, asks to confirm)
-#   ./organize_stars.sh --dry-run    # Preview only, no changes
-#   ./organize_stars.sh -y           # Skip confirmation prompt
-#   ./organize_stars.sh --show-repos # Also list repo names in each category
-#   ./organize_stars.sh --no-cache   # Force re-fetch stars from GitHub
+#   ./github-organize-stars.sh              # Interactive: show plan, ask to confirm
+#   ./github-organize-stars.sh --dry-run    # Preview only, no changes
+#   ./github-organize-stars.sh -y           # Skip confirmation prompt
+#   ./github-organize-stars.sh --show-repos # Also list repo names in each category
+#   ./github-organize-stars.sh --no-cache   # Force re-fetch stars from GitHub
+#
+# Environment variables:
+#   CACHE_FILE  Optional. Path to the stars cache file
+#               (default: ~/.cache/gh-star-organizer/stars.json)
+#
+# Requirements:
+#   - gh (GitHub CLI, authenticated)
+#   - jq
 # =============================================================================
 
 set -uo pipefail

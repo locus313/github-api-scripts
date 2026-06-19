@@ -1,9 +1,26 @@
 #!/bin/bash
-
-# GitHub Archive Old Repositories
-# Identifies and archives repositories not updated in the last 5 years
-# Author: Patrick Lewis (locus313)
-# Date: October 15, 2025
+# =============================================================================
+# github-archive-old-repos.sh
+#
+# Identifies and archives repositories that have not been updated within a
+# configurable number of years. Generates a timestamped CSV report of all
+# archived repositories.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   ./github-archive-old-repos.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN      Required. PAT with repo scope
+#   ORG               Required. GitHub organization name
+#   YEARS_THRESHOLD   Optional. Age threshold in years (default: 5)
+#   API_URL_PREFIX    Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
 
 set -euo pipefail
 

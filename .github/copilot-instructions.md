@@ -26,29 +26,57 @@ Provides reusable helpers sourced by scripts:
 
 ### Script Anatomy (Standardized Pattern)
 
-All scripts follow this structure:
+All scripts **must** begin with a `# ===` header block, followed immediately by
+`set -euo pipefail`. Fill in the script name, description, usage, every
+environment variable the script reads (Required/Optional), and every external
+command it depends on.
 
 ```bash
 #!/bin/bash
+# =============================================================================
+# github-<script-name>.sh
+#
+# <One-paragraph description of what this script does.>
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   ./github-<script-name>.sh [options]
+#
+# Options:                         (omit this section if there are no CLI flags)
+#   --dry-run    Preview changes without making them
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with <scope> scope
+#   ORG             Required. GitHub organization name
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail                # ALWAYS include: exit on error, undefined vars, pipe failures
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../lib/github-common.sh
+source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 ### GLOBAL VARIABLES
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
-GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 # Script-specific required vars...
-
-# Source shared library (when available)
-# SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 # Token validation block
 # Helper functions for pagination/processing
 # Main execution logic
 ```
 
-**Critical patterns:**
+**Rules:**
+- The `# ===` fence is exactly 79 characters.
+- Do **not** add a second `###` description block inside the body — all descriptive content belongs in the top header.
+- `set -euo pipefail` must be the first executable line after the header.
 
 ## GitHub API Patterns
 

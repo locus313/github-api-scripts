@@ -1,10 +1,22 @@
 #!/bin/bash
-# lib/github-common.sh — Shared utility functions for GitHub API scripts.
+# =============================================================================
+# github-common.sh
 #
-# Source this from any script:
+# Shared utility functions for GitHub API scripts. Source this library from
+# any script; do not execute it directly.
+#
+# Usage (from a script two directory levels deep):
 #   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #   # shellcheck source=../../lib/github-common.sh
 #   source "${SCRIPT_DIR}/../../lib/github-common.sh"
+#
+# Provides:
+#   print_status / print_success / print_warning / print_error
+#   require_env_var <VAR> [description]  — exit if variable is unset/empty
+#   require_command <cmd>                — exit if command not found
+#   validate_github_token [bearer]       — verify token via /user endpoint
+#   validate_token <VAR_NAME>            — verify a secondary token variable
+# =============================================================================
 
 ###
 ## COLOR CODES

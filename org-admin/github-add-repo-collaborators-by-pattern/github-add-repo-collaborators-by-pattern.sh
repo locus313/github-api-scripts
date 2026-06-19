@@ -1,4 +1,31 @@
 #!/bin/bash
+# =============================================================================
+# github-add-repo-collaborators-by-pattern.sh
+#
+# Adds one or more individual collaborators to all repositories in an
+# organisation whose names match a given regex pattern.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   export COLLABORATORS=alice,bob
+#   export REPO_NAME_REGEX='^service-'
+#   ./github-add-repo-collaborators-by-pattern.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN        Required. PAT with repo and admin:org scope
+#   ORG                 Required. GitHub organization name
+#   COLLABORATORS       Required. Comma-separated GitHub usernames
+#   REPO_NAME_REGEX     Required. ERE regex to match repository names
+#   PERMISSION          Optional. Permission level: pull|triage|push|maintain|admin (default: push)
+#   REPO_EXCLUDE_REGEX  Optional. ERE regex to exclude matching repository names
+#   API_URL_PREFIX      Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

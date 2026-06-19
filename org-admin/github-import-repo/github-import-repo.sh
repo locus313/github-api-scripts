@@ -1,4 +1,33 @@
 #!/bin/bash
+# =============================================================================
+# github-import-repo.sh
+#
+# Imports an existing repository into a GitHub organisation as a new internal
+# repository by performing a bare clone and mirror push. Grants admin access
+# to a specified owner account.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   export OWNER_USERNAME=admin-user
+#   ./github-import-repo.sh <source_repo> <destination_repo>
+#
+# Arguments:
+#   source_repo       Name of the existing repository to clone
+#   destination_repo  Name of the new repository to create
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with repo scope
+#   ORG             Required. GitHub organization name
+#   OWNER_USERNAME  Required. GitHub username to grant admin on the new repo
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#   GIT_URL_PREFIX  Optional. GitHub base URL for git operations (default: https://github.com)
+#
+# Requirements:
+#   - curl
+#   - git
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

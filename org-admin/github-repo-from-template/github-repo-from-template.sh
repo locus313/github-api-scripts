@@ -1,4 +1,37 @@
 #!/bin/bash
+# =============================================================================
+# github-repo-from-template.sh
+#
+# Creates a new private GitHub repository from a template repository, grants
+# team permissions, adds a CI/CD service account as a collaborator, and
+# automatically accepts the collaboration invitation.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   export TEMPLATE_REPO=my-template
+#   export CD_USERNAME=ci-bot
+#   export CD_GITHUB_TOKEN=ghp_citoken
+#   ./github-repo-from-template.sh <repo_name>
+#
+# Arguments:
+#   repo_name         Name of the new repository to create
+#
+# Environment variables:
+#   GITHUB_TOKEN      Required. PAT with repo scope
+#   ORG               Required. GitHub organization name
+#   TEMPLATE_REPO     Required. Template repository name
+#   CD_USERNAME       Required. CI/CD service account username
+#   CD_GITHUB_TOKEN   Required. Token for the CI/CD service account
+#   REPO_ADMIN        Optional. Space-separated team slugs to grant admin access
+#   REPO_WRITE        Optional. Space-separated team slugs to grant write access
+#   API_URL_PREFIX    Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

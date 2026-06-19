@@ -1,4 +1,32 @@
 #!/bin/bash
+# =============================================================================
+# github-monthly-issues-report.sh
+#
+# Generates a monthly issues report for a GitHub repository, listing all
+# issues created within a date range that carry the "Linked [AC]" label,
+# grouped by author and contributor.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   export REPO=my-repo
+#   export MONTH_START=2025-01-01
+#   export MONTH_END=2025-01-31
+#   ./github-monthly-issues-report.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with repo scope
+#   ORG             Required. GitHub organization name
+#   REPO            Required. Repository name
+#   MONTH_START     Required. Start of reporting period (YYYY-MM-DD)
+#   MONTH_END       Required. End of reporting period (YYYY-MM-DD)
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

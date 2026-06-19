@@ -1,4 +1,32 @@
 #!/bin/bash
+# =============================================================================
+# github-dockerfile-discovery.sh
+#
+# Searches all organisations in a GitHub Enterprise account for Dockerfiles,
+# extracts base image references from FROM instructions, and generates CSV
+# reports to identify common base images across the estate.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ENTERPRISE=my-enterprise
+#   ./github-dockerfile-discovery.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with read:org and repo scope
+#   ENTERPRISE      Required. GitHub Enterprise slug
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#   REPORT_DIR      Optional. Output directory (default: ./reports)
+#   ORGS            Optional. Comma-separated org list; skips enterprise lookup
+#   ORG_FILTER      Optional. ERE regex to keep only matching org names
+#   ORG_EXCLUDE     Optional. ERE regex to drop matching org names
+#   SEARCH_SLEEP    Optional. Seconds between code-search requests (default: 2)
+#   CONTENT_SLEEP   Optional. Seconds between content-fetch requests (default: 1)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,27 +37,6 @@ print_status()  { echo -e "${BLUE}[INFO]${NC}    $1" >&2; }
 print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1" >&2; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1" >&2; }
 print_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
-
-###
-## GitHub Enterprise Dockerfile Discovery
-## Searches all organisations in a GitHub Enterprise account for Dockerfiles,
-## extracts base image references from FROM instructions, and generates CSV
-## reports to identify common base images across the estate.
-##
-## Usage:
-##   export GITHUB_TOKEN=ghp_yourtoken
-##   export ENTERPRISE=my-enterprise
-##   ./github-dockerfile-discovery.sh
-##
-## Optional env vars:
-##   API_URL_PREFIX  - GitHub API base URL (default: https://api.github.com)
-##   REPORT_DIR      - Output directory    (default: ./reports)
-##   ORGS            - Comma-separated org list; skips enterprise lookup
-##   ORG_FILTER      - ERE regex to keep only matching org names (e.g. '^my-enterprise-prefix')
-##   ORG_EXCLUDE     - ERE regex to drop matching org names
-##   SEARCH_SLEEP    - Seconds between code-search requests (default: 2)
-##   CONTENT_SLEEP   - Seconds between content-fetch requests (default: 1)
-###
 
 ###
 ## GLOBAL VARIABLES

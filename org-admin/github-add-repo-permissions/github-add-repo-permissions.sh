@@ -1,4 +1,35 @@
 #!/bin/bash
+# =============================================================================
+# github-add-repo-permissions.sh
+#
+# Grants team-level permissions across all repositories in a GitHub
+# organisation. Supports all five permission levels: admin, maintain, push,
+# triage, and pull. At least one permission level must be specified.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   export REPO_PUSH="platform-team ci-team"
+#   ./github-add-repo-permissions.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with admin:org scope
+#   ORG             Required. GitHub organization name
+#   REPO_ADMIN      Optional. Space-separated team slugs to grant admin access
+#   REPO_MAINTAIN   Optional. Space-separated team slugs to grant maintain access
+#   REPO_PUSH       Optional. Space-separated team slugs to grant push access
+#   REPO_TRIAGE     Optional. Space-separated team slugs to grant triage access
+#   REPO_PULL       Optional. Space-separated team slugs to grant pull access
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Note: At least one of REPO_ADMIN, REPO_MAINTAIN, REPO_PUSH, REPO_TRIAGE,
+#       or REPO_PULL must be set.
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

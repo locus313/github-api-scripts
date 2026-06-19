@@ -1,31 +1,37 @@
 #!/bin/bash
+# =============================================================================
+# github-close-archived-repo-security-alerts.sh
+#
+# Dismisses or resolves all open security alerts (Dependabot, code scanning,
+# and secret scanning) across all repositories in a GitHub organisation.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   ./github-close-archived-repo-security-alerts.sh [--type <type>] [--dry-run]
+#
+# Options:
+#   --type <type>   Alert type: dependabot | code-scanning | secret-scanning | all (default: all)
+#   --dry-run       List alerts without dismissing them
+#
+# Environment variables:
+#   GITHUB_TOKEN                   Required. PAT with security_events and repo scope
+#   ORG                            Required. GitHub organization name
+#   API_URL_PREFIX                 Optional. GitHub API base URL (default: https://api.github.com)
+#   DEPENDABOT_REASON              Optional. Dismiss reason for Dependabot alerts (default: tolerable_risk)
+#   CODE_SCANNING_REASON           Optional. Dismiss reason for code scanning (default: won't fix)
+#   SECRET_SCANNING_RESOLUTION     Optional. Resolution for secret scanning (default: wont_fix)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
-
-###
-## GitHub Close Security Alerts
-## Dismisses or resolves all open security alerts across all repositories
-## in a GitHub organization.
-##
-## Supports three alert types:
-##   - dependabot    : Vulnerable dependency alerts
-##   - code-scanning : Static analysis / SAST findings
-##   - secret-scanning: Leaked secrets
-##
-## Usage:
-##   ./github-close-security-alerts.sh [--type <type>] [--dry-run]
-##
-## Options:
-##   --type <type>   Alert type: dependabot | code-scanning | secret-scanning | all (default: all)
-##   --dry-run       List alerts without dismissing them
-##
-## Environment variables:
-##   GITHUB_TOKEN    Required. PAT with security_events, repo scope
-##   ORG             Required. GitHub organization name
-###
 
 ###
 ## GLOBAL VARIABLES

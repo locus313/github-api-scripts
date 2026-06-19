@@ -1,4 +1,26 @@
 #!/bin/bash
+# =============================================================================
+# github-get-repo-list.sh
+#
+# Lists all repositories in a GitHub organisation and outputs their metadata
+# (name, owner, visibility, URL, description, fork status, timestamps) to
+# stdout in CSV format.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   ./github-get-repo-list.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with read:org and repo scope
+#   ORG             Required. GitHub organization name
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

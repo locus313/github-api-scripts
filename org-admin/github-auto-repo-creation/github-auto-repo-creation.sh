@@ -1,4 +1,31 @@
 #!/bin/bash
+# =============================================================================
+# github-auto-repo-creation.sh
+#
+# Creates one or more private GitHub repositories in an organisation with
+# standard configuration: branch protection on main, a CODEOWNERS file, and
+# optional team permissions.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   export REPO_NAMES=repo1,repo2
+#   export REPO_OWNERS=platform-team
+#   ./github-auto-repo-creation.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with repo and admin:org scope
+#   ORG             Required. GitHub organization name
+#   REPO_NAMES      Required. Comma-separated list of repository names to create
+#   REPO_OWNERS     Required. Comma-separated list of CODEOWNERS team slugs
+#   ADMIN_TEAMS     Optional. Comma-separated team slugs to grant admin access
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - base64
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

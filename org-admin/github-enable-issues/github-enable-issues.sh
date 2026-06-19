@@ -1,30 +1,33 @@
 #!/bin/bash
+# =============================================================================
+# github-enable-issues.sh
+#
+# Enables the Issues feature on every repository in a GitHub organisation that
+# currently has it disabled. Skips archived repositories.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   ./github-enable-issues.sh [--dry-run]
+#
+# Options:
+#   --dry-run    List repositories that would be updated without making changes
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with repo or admin:org scope
+#   ORG             Required. GitHub organization name
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
-
-###
-## GitHub Enable Issues
-## Enables the Issues feature on every repository in a GitHub organization
-## that currently has it disabled.
-##
-## Skips archived repositories (issues cannot be enabled on them).
-##
-## Usage:
-##   export GITHUB_TOKEN=ghp_yourtoken
-##   export ORG=my-org
-##   ./github-enable-issues.sh [--dry-run]
-##
-## Options:
-##   --dry-run    List repos that would be updated without making any changes
-##
-## Environment variables:
-##   GITHUB_TOKEN    Required. PAT with repo or admin:org scope
-##   ORG             Required. GitHub organization name
-##   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
-###
 
 ###
 ## GLOBAL VARIABLES

@@ -1,4 +1,25 @@
 #!/bin/bash
+# =============================================================================
+# github-get-consumed-licenses.sh
+#
+# Displays the total number of GitHub Enterprise license seats consumed and
+# purchased for the given enterprise account.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ENTERPRISE=my-enterprise
+#   ./github-get-consumed-licenses.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with manage_billing:enterprise scope
+#   ENTERPRISE      Required. GitHub Enterprise slug
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

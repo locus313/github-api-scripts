@@ -1,18 +1,35 @@
 #!/bin/bash
+# =============================================================================
+# github-add-enterprise-team-read-permissions.sh
+#
+# Assigns the built-in "All-repository read" organisation role to a specified
+# enterprise team in every organisation within a GitHub Enterprise account.
+# This grants read access to all current and future repositories without
+# requiring per-repository assignments.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ENTERPRISE=my-enterprise
+#   export ENTERPRISE_TEAM_SLUG=platform-team
+#   ./github-add-enterprise-team-read-permissions.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN             Required. PAT with admin:enterprise scope
+#   ENTERPRISE               Required. GitHub Enterprise slug
+#   ENTERPRISE_TEAM_SLUG     Required. Enterprise team slug (without "ent:" prefix)
+#   ALL_REPO_READ_ROLE_NAME  Optional. Org role name (default: all_repo_read)
+#   API_URL_PREFIX           Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
-
-###
-## GitHub Enterprise Team Org Role Assignment
-## Assigns the built-in "All-repository read" organization role to the
-## configured enterprise team in every org in the enterprise.
-##
-## This org-level role grants read access to all current AND future
-## repositories, so the assignment only needs to be made once per org.
-###
 
 ###
 ## GLOBAL VARIABLES

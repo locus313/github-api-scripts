@@ -1,12 +1,30 @@
 #!/bin/bash
+# =============================================================================
+# github-migrate-internal-repos-to-private.sh
+#
+# Converts all repositories with "internal" visibility to "private" in a
+# GitHub organisation.
+#
+# Usage:
+#   export GITHUB_TOKEN=ghp_yourtoken
+#   export ORG=my-org
+#   ./github-migrate-internal-repos-to-private.sh
+#
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with repo scope
+#   ORG             Required. GitHub organization name
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
+# Requirements:
+#   - curl
+#   - jq
+# =============================================================================
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
-
-# This script will obtain a list of repos, check if they are of "Internal" type, and if so, convert them to "Private" type.
-# You will need to set your github token as env var GITHUB_TOKEN
 
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
