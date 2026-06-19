@@ -6,13 +6,13 @@
 
 ⭐ If you like this project, star it on GitHub — it helps a lot!
 
-[Overview](#overview) • [Getting started](#getting-started) • [Scripts](#scripts) • [Resources](#resources)
+[Overview](#overview) • [Getting started](#getting-started) • [Scripts](#scripts) • [Shared Library](#shared-library-libgithub-commonsh) • [GitHub Actions](#using-scripts-in-github-actions) • [Resources](#resources)
 
 A collection of standalone bash scripts for GitHub organization administration. Automate common tasks like bulk permission management, repository creation, migration, and reporting using simple, self-contained utilities powered by the GitHub REST API.
 
 ## Overview
 
-This toolkit provides ready-to-use automation scripts for GitHub organization administrators. Each script is a complete, independent utility—no shared libraries or frameworks. Just drop in your token and organization name, and you're ready to go.
+This toolkit provides ready-to-use automation scripts for GitHub organization administrators. Each script is a complete, independent utility that can be run directly or integrated into your GitHub Actions workflows.
 
 **What you can do:**
 - Grant team permissions across all repositories in bulk
@@ -20,18 +20,17 @@ This toolkit provides ready-to-use automation scripts for GitHub organization ad
 - Mirror repositories with full git history
 - Generate monthly issue reports with contributor statistics
 - Track license consumption for enterprise accounts
+- Archive old repositories
+- Discover Dockerfiles and base images across an enterprise
+- Organize your starred repositories
+- And much more!
 
-**What you can do:**
-- Grant team permissions across all repositories in bulk
-- Create repositories from templates with pre-configured access
-- Mirror repositories with full git history
-- Generate monthly issue reports with contributor statistics
-- Track license consumption for enterprise accounts
+**Architecture:** Scripts use a shared utility library (`lib/github-common.sh`) for common validation, error handling, and API helpers. Each script lives in its own directory as a single `.sh` file—drop in your token and organization name, and you're ready to go.
 
-**Built with simplicity:** Each script uses only `curl` for API requests and `jq` for JSON processing—no complex dependencies, no installation required beyond standard Unix tools.
+**Built with simplicity:** All scripts use only `curl` for API requests and `jq` for JSON processing—no complex dependencies or installation required beyond standard Unix tools.
 
 > [!NOTE]
-> These scripts follow a convention-over-configuration approach. Each lives in its own directory as a single `.sh` file with built-in validation and error handling.
+> Scripts follow a convention-over-configuration approach with built-in validation and error handling. Each can be run standalone or integrated into CI/CD pipelines and GitHub Actions workflows.
 
 ## Getting started
 
@@ -306,6 +305,243 @@ The **first matching rule wins**, so order matters. Place more specific rules (e
 > [!NOTE]
 > This script uses the `gh` CLI for all API calls (GraphQL) rather than `curl`. Ensure you are authenticated via `gh auth login` before running.
 
+## Shared Library: `lib/github-common.sh`
+
+All scripts can leverage a shared utility library for common operations like validation, colored output, and API helpers. The library is optional—scripts work standalone without it—but sourcing it reduces code duplication and adds helpful utilities.
+
+### Available Functions
+
+**Output formatting:**
+- `print_status <message>` — Blue INFO message
+- `print_success <message>` — Green SUCCESS message
+- `print_warning <message>` — Yellow WARNING message
+- `print_error <message>` — Red ERROR message (to stderr)
+
+**Validation:**
+- `require_env_var <VAR_NAME> [description]` — Exit if environment variable is empty
+- `require_command <cmd> [hint]` — Exit if command is not in PATH
+- `validate_token <VAR_NAME> [bearer]` — Validate GitHub token by calling `/user` endpoint
+- `validate_github_token [bearer]` — Convenience wrapper for `GITHUB_TOKEN` validation
+
+**API helpers:**
+- `get_repo_page_count <url>` — Get total page count from paginated REST endpoint
+
+### Using the Shared Library in Scripts
+
+Source the library from your script:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+GITHUB_TOKEN=${GITHUB_TOKEN:-''}
+ORG=${ORG:-''}
+API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
+
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/github-common.sh
+source "${SCRIPT_DIR}/../lib/github-common.sh"
+
+# Now use library functions
+require_env_var GITHUB_TOKEN "GitHub Personal Access Token"
+require_env_var ORG "GitHub Organization"
+validate_github_token
+
+print_status "Processing organization: ${ORG}"
+# ... rest of script
+```
+
+## Using Scripts in GitHub Actions
+
+All scripts can be easily integrated into GitHub Actions workflows. Here are practical examples:
+
+### Example 1: Grant Team Permissions on Repository Changes
+
+Automatically update team permissions when ownership rules change:
+
+```yaml
+name: Update Repository Permissions
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/CODEOWNERS'  # Trigger when ownership changes
+
+jobs:
+  update-permissions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Grant team permissions to all repos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG: my-org
+          REPO_PUSH: developers maintainers
+          REPO_TRIAGE: support-team
+        run: |
+          ./github-add-repo-permissions/github-add-repo-permissions.sh
+```
+
+### Example 2: Archive Old Repositories Monthly
+
+Schedule automated archival of stale repositories:
+
+```yaml
+name: Archive Old Repositories
+on:
+  schedule:
+    # Run monthly on the 1st at 9 AM UTC
+    - cron: '0 9 1 * *'
+
+jobs:
+  archive-old:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Archive repositories not updated in 5 years
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
+          ORG: my-org
+          YEARS_THRESHOLD: 5
+        run: |
+          ./github-archive-old-repos/github-archive-old-repos.sh
+      
+      - name: Upload report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-report
+          path: github-archive-old-repos/reports/
+          retention-days: 30
+```
+
+### Example 3: Create Repositories from Template
+
+Allow manual repository creation with pre-configured settings via workflow dispatch:
+
+```yaml
+name: Create New Repository from Template
+on:
+  workflow_dispatch:
+    inputs:
+      repo-name:
+        description: 'Repository name'
+        required: true
+        type: string
+      repo-owner:
+        description: 'Team slug for admin permissions'
+        required: true
+        type: string
+
+jobs:
+  create-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create repository from template
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORG: my-org
+          TEMPLATE_REPO: template-repo
+          REPO_ADMIN: ${{ github.event.inputs.repo-owner }}
+          REPO_WRITE: developers
+          CD_USERNAME: github-actions[bot]
+          CD_GITHUB_TOKEN: ${{ secrets.CD_TOKEN }}
+        run: |
+          ./github-repo-from-template/github-repo-from-template.sh "${{ github.event.inputs.repo-name }}"
+      
+      - name: Log success
+        if: success()
+        run: |
+          echo "✅ Repository ${{ github.event.inputs.repo-name }} created successfully!"
+```
+
+### Example 4: Weekly Dockerfile Discovery Report
+
+Track base images across your enterprise:
+
+```yaml
+name: Discover Dockerfiles in Enterprise
+on:
+  schedule:
+    # Run weekly on Monday at 12 PM UTC
+    - cron: '0 12 * * 1'
+
+jobs:
+  discover-dockerfiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Discover Dockerfiles across enterprise
+        env:
+          GITHUB_TOKEN: ${{ secrets.ENTERPRISE_TOKEN }}
+          ENTERPRISE: my-enterprise
+          REPORT_DIR: ./reports
+        run: |
+          mkdir -p ./reports
+          ./github-dockerfile-discovery/github-dockerfile-discovery.sh
+      
+      - name: Upload reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dockerfile-reports
+          path: reports/
+          retention-days: 60
+      
+      - name: Commit reports to repository
+        if: success()
+        run: |
+          git add reports/ || true
+          git diff --quiet && git diff --staged --quiet || (
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: update dockerfile discovery reports"
+            git push
+          )
+```
+
+### GitHub Actions Best Practices
+
+**Use separate secrets for sensitive operations:**
+```yaml
+env:
+  GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}      # For org-level changes
+  CD_GITHUB_TOKEN: ${{ secrets.CD_BOT_TOKEN }}      # For CD user operations
+```
+
+**Capture logs for audit trails:**
+```yaml
+- name: Run script with logging
+  run: |
+    ./github-add-repo-permissions/github-add-repo-permissions.sh 2>&1 | tee -a execution.log
+    
+- name: Upload execution log
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: execution-logs
+    path: execution.log
+```
+
+**Use workflow_dispatch for manual operations:**
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: 'Organization name'
+        required: true
+```
+
+**Protect destructive operations:**
+Consider adding approval steps or environment protection rules before running destructive scripts (like archive or delete operations).
+
 ## Best Practices
 
 **Test on a test organization first**
@@ -336,3 +572,4 @@ export GIT_URL_PREFIX="https://github.company.com"
 - [Creating a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 - [jq Manual](https://stedolan.github.io/jq/manual/)
 - [GitHub API Rate Limits](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
