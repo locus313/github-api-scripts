@@ -1,0 +1,76 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../lib/github-common.sh
+source "${SCRIPT_DIR}/../../lib/github-common.sh"
+
+### GLOBAL VARIABLES
+GITHUB_TOKEN=${GITHUB_TOKEN:-''}
+ORG=${ORG:-''}
+API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
+GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
+SRC_REPO=${1:-''}
+DEST_REPO=${2:-''}
+OWNER_USERNAME=${OWNER_USERNAME:-''}
+WORKDIR=''
+
+usage() {
+  echo "Usage: $0 <source_repo_name> <destination_repo_name>"
+  echo "Required env vars: GITHUB_TOKEN, ORG, OWNER_USERNAME"
+}
+
+cleanup() {
+  if [ -n "${WORKDIR}" ] && [ -d "${WORKDIR}" ]; then
+    rm -rf "${WORKDIR}"
+  fi
+}
+
+trap cleanup EXIT
+
+require_env_var GITHUB_TOKEN "GitHub token"
+require_env_var ORG "GitHub organization"
+
+if [ -z "${SRC_REPO}" ]; then
+  echo "SRC_REPO is empty. Please provide source repository as first argument"
+  usage
+  exit 1
+fi
+
+if [ -z "${DEST_REPO}" ]; then
+  echo "DEST_REPO is empty. Please provide destination repository as second argument"
+  usage
+  exit 1
+fi
+
+require_env_var OWNER_USERNAME "Owner username"
+require_command git
+validate_github_token
+
+# Create repo
+CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.nebula-preview+json" "${API_URL_PREFIX}/orgs/${ORG}/repos" -d '{"name":"'"${DEST_REPO}"'", "visibility":"internal"}')
+
+if [ "${CREATE_RESPONSE}" -ne 201 ] && [ "${CREATE_RESPONSE}" -ne 422 ]; then
+  echo "Error: failed to create repository ${ORG}/${DEST_REPO} (HTTP ${CREATE_RESPONSE})"
+  exit 1
+fi
+
+# Grant admin permissions on new repo
+OWNER_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/repos/${ORG}/${DEST_REPO}/collaborators/${OWNER_USERNAME}" -d '{"permission":"admin"}')
+
+if [ "${OWNER_RESPONSE}" -ne 201 ] && [ "${OWNER_RESPONSE}" -ne 204 ]; then
+  echo "Error: failed to grant admin to ${OWNER_USERNAME} on ${DEST_REPO} (HTTP ${OWNER_RESPONSE})"
+  exit 1
+fi
+
+WORKDIR=$(mktemp -d)
+cd "${WORKDIR}"
+
+# Clone old repo locally
+git clone --bare "${GIT_URL_PREFIX}/${ORG}/${SRC_REPO}.git"
+
+# Push to new repo
+cd "${SRC_REPO}.git"
+git push --mirror "${GIT_URL_PREFIX}/${ORG}/${DEST_REPO}.git"
+
+echo "Repository import complete: ${SRC_REPO} -> ${DEST_REPO}"

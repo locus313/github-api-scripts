@@ -25,7 +25,7 @@ This toolkit provides ready-to-use automation scripts for GitHub organization ad
 - Organize your starred repositories
 - And much more!
 
-**Architecture:** Scripts use a shared utility library (`lib/github-common.sh`) for common validation, error handling, and API helpers. Each script lives in its own directory as a single `.sh` file—drop in your token and organization name, and you're ready to go.
+**Architecture:** Scripts use a shared utility library (`lib/github-common.sh`) for common validation, error handling, and API helpers. Script directories are grouped by domain (`org-admin/`, `enterprise/`, `reporting/`, `personal/`) and each script remains a self-contained `.sh` utility.
 
 **Built with simplicity:** All scripts use only `curl` for API requests and `jq` for JSON processing—no complex dependencies or installation required beyond standard Unix tools.
 
@@ -89,9 +89,16 @@ Scripts use environment variables for configuration. Common variables include:
 
 Each script is a self-contained utility designed for a specific task. Navigate to the script's directory, set the required environment variables, and execute.
 
+### Folder Layout (Domain-Based)
+
+- `org-admin/`: `github-add-repo-collaborators-by-pattern`, `github-add-repo-permissions`, `github-archive-old-repos`, `github-auto-repo-creation`, `github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-get-repo-list`, `github-import-repo`, `github-migrate-internal-repos-to-private`, `github-repo-from-template`
+- `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`
+- `reporting/`: `github-monthly-issues-report`
+- `personal/`: `github-organize-stars`
+
 ### Add Repository Permissions
 
-**Script:** `github-add-repo-permissions/github-add-repo-permissions.sh`
+**Script:** `org-admin/github-add-repo-permissions/github-add-repo-permissions.sh`
 
 Grants team permissions across all repositories in an organization. Supports multiple permission levels (admin, maintain, push, triage, pull) and multiple teams per permission level.
 
@@ -110,7 +117,7 @@ export REPO_PULL="external-auditors"            # Read/pull permissions
 
 **Usage:**
 ```bash
-cd github-add-repo-permissions
+cd org-admin/github-add-repo-permissions
 ./github-add-repo-permissions.sh
 ```
 
@@ -135,7 +142,7 @@ cd github-add-repo-permissions
 
 ### Create Repository from Template
 
-**Script:** `github-repo-from-template/github-repo-from-template.sh`
+**Script:** `org-admin/github-repo-from-template/github-repo-from-template.sh`
 
 Creates a new repository from a template with pre-configured team permissions and collaborator access.
 
@@ -152,7 +159,7 @@ export CD_GITHUB_TOKEN="bot_token"
 
 **Usage:**
 ```bash
-cd github-repo-from-template
+cd org-admin/github-repo-from-template
 ./github-repo-from-template.sh new-project-name
 ```
 
@@ -167,7 +174,7 @@ cd github-repo-from-template
 
 ### Import Repository
 
-**Script:** `github-import-repo/github-import-repo.sh`
+**Script:** `org-admin/github-import-repo/github-import-repo.sh`
 
 Performs a full repository mirror—clones source repo and pushes all branches, tags, and history to a new destination repo.
 
@@ -180,7 +187,7 @@ export OWNER_USERNAME="admin-user"
 
 **Usage:**
 ```bash
-cd github-import-repo
+cd org-admin/github-import-repo
 ./github-import-repo.sh source-repo destination-repo
 ```
 
@@ -198,7 +205,7 @@ cd github-import-repo
 
 ### Monthly Issues Report
 
-**Script:** `github-monthly-issues-report/github-monthly-issues-report.sh`
+**Script:** `reporting/github-monthly-issues-report/github-monthly-issues-report.sh`
 
 Generates HTML-formatted statistics about issues created within a date range, filtered by labels.
 
@@ -213,7 +220,7 @@ export MONTH_END="2025-10-31"
 
 **Usage:**
 ```bash
-cd github-monthly-issues-report
+cd reporting/github-monthly-issues-report
 ./github-monthly-issues-report.sh
 ```
 
@@ -231,7 +238,7 @@ cd github-monthly-issues-report
 
 ### Get Consumed Licenses
 
-**Script:** `github-get-consumed-licenses/github-get-consumed-licenses.sh`
+**Script:** `enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh`
 
 Retrieves license consumption metrics for a GitHub Enterprise account.
 
@@ -243,7 +250,7 @@ export ENTERPRISE="your-enterprise"
 
 **Usage:**
 ```bash
-cd github-get-consumed-licenses
+cd enterprise/github-get-consumed-licenses
 ./github-get-consumed-licenses.sh
 ```
 
@@ -265,7 +272,7 @@ Total seats purchased: 200
 
 ### Organize Starred Repositories
 
-**Script:** `github-organize-stars/github-organize-stars.sh`
+**Script:** `personal/github-organize-stars/github-organize-stars.sh`
 
 Fetches all your starred repositories and organizes them into GitHub Lists using customizable categorization rules.
 
@@ -275,7 +282,7 @@ Fetches all your starred repositories and organizes them into GitHub Lists using
 
 **Usage:**
 ```bash
-cd github-organize-stars
+cd personal/github-organize-stars
 ./github-organize-stars.sh              # Interactive (shows plan, asks to confirm)
 ./github-organize-stars.sh --dry-run    # Preview only, no changes made
 ./github-organize-stars.sh -y           # Skip confirmation prompt
@@ -340,8 +347,8 @@ API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 
 # Source shared library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/github-common.sh
-source "${SCRIPT_DIR}/../lib/github-common.sh"
+# shellcheck source=../../lib/github-common.sh
+source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 # Now use library functions
 require_env_var GITHUB_TOKEN "GitHub Personal Access Token"
@@ -381,7 +388,7 @@ jobs:
           REPO_PUSH: developers maintainers
           REPO_TRIAGE: support-team
         run: |
-          ./github-add-repo-permissions/github-add-repo-permissions.sh
+          ./org-admin/github-add-repo-permissions/github-add-repo-permissions.sh
 ```
 
 ### Example 2: Archive Old Repositories Monthly
@@ -407,14 +414,14 @@ jobs:
           ORG: my-org
           YEARS_THRESHOLD: 5
         run: |
-          ./github-archive-old-repos/github-archive-old-repos.sh
+          ./org-admin/github-archive-old-repos/github-archive-old-repos.sh
       
       - name: Upload report as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: archive-report
-          path: github-archive-old-repos/reports/
+          path: org-admin/github-archive-old-repos/reports/
           retention-days: 30
 ```
 
@@ -452,7 +459,7 @@ jobs:
           CD_USERNAME: github-actions[bot]
           CD_GITHUB_TOKEN: ${{ secrets.CD_TOKEN }}
         run: |
-          ./github-repo-from-template/github-repo-from-template.sh "${{ github.event.inputs.repo-name }}"
+          ./org-admin/github-repo-from-template/github-repo-from-template.sh "${{ github.event.inputs.repo-name }}"
       
       - name: Log success
         if: success()
@@ -484,7 +491,7 @@ jobs:
           REPORT_DIR: ./reports
         run: |
           mkdir -p ./reports
-          ./github-dockerfile-discovery/github-dockerfile-discovery.sh
+          ./enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh
       
       - name: Upload reports as artifacts
         if: always()
@@ -519,7 +526,7 @@ env:
 ```yaml
 - name: Run script with logging
   run: |
-    ./github-add-repo-permissions/github-add-repo-permissions.sh 2>&1 | tee -a execution.log
+    ./org-admin/github-add-repo-permissions/github-add-repo-permissions.sh 2>&1 | tee -a execution.log
     
 - name: Upload execution log
   if: always()

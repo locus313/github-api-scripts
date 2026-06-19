@@ -3,8 +3,8 @@
 #
 # Source this from any script:
 #   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-#   # shellcheck source=../lib/github-common.sh
-#   source "${SCRIPT_DIR}/../lib/github-common.sh"
+#   # shellcheck source=../../lib/github-common.sh
+#   source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 ###
 ## COLOR CODES
