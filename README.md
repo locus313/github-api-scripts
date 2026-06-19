@@ -85,6 +85,32 @@ Scripts use environment variables for configuration. Common variables include:
 > [!NOTE]
 > The `*_PREFIX` variables support GitHub Enterprise Server. Set them to your enterprise domain to use these scripts with GHES.
 
+### Pre-commit Hooks
+
+The repository ships versioned pre-commit hooks in `.githooks/`. Run the installer once after cloning:
+
+```bash
+./install-hooks.sh
+```
+
+This sets `core.hooksPath` to `.githooks/` so Git picks up the hooks automatically on every commit.
+
+**What the hook checks:**
+
+| Check | Tool | Fallback |
+|-------|------|----------|
+| Secret scanning | [`gitleaks`](https://github.com/gitleaks/gitleaks) | Built-in regex patterns for GitHub tokens, AWS keys, private keys, and generic secrets |
+| Shell script security | [`shellcheck`](https://www.shellcheck.net) | Skipped with a warning if not installed |
+
+Install the recommended tools for full coverage:
+
+```bash
+brew install gitleaks shellcheck
+```
+
+> [!TIP]
+> To bypass the hooks in an emergency: `git commit --no-verify`. Use sparingly — the hooks exist to prevent secrets from reaching the remote.
+
 ## Scripts
 
 Each script is a self-contained utility designed for a specific task. Navigate to the script's directory, set the required environment variables, and execute.
