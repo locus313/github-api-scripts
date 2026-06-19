@@ -1,0 +1,162 @@
+#!/bin/bash
+set -euo pipefail
+
+###
+## GLOBAL VARIABLES - Set default values for the required environment variables
+###
+GITHUB_TOKEN=${GITHUB_TOKEN:-''}
+ORG=${ORG:-''}
+API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
+
+# Set default values for repository names and admin teams and code owners
+REPO_NAMES=${REPO_NAMES:-''}
+ADMIN_TEAMS=${ADMIN_TEAMS:-''}
+REPO_OWNERS=${REPO_OWNERS:-''}
+
+if [ -z "${GITHUB_TOKEN}" ]
+then
+      echo "GITHUB_TOKEN is empty. Please set your token and try again"
+      exit 1
+fi
+
+if [ -z "${ORG}" ]
+then
+  echo "ORG is empty. Please set ORG and try again"
+  exit 1
+fi
+
+if [ -z "${REPO_NAMES}" ]
+then
+  echo "REPO_NAMES is empty. Please set at least one repository name and try again"
+  exit 1
+fi
+
+if [ -z "${REPO_OWNERS}" ]
+then
+  echo "REPO_OWNERS is empty. Please set at least one repository owner team and try again"
+  exit 1
+fi
+
+if ! command -v base64 > /dev/null 2>&1; then
+  echo "base64 is not installed. Please install base64 and try again"
+  exit 1
+fi
+
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
+
+if [ "${RESPONSE}" -ne 200 ]; then
+  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
+  exit 1
+fi
+
+# Define the content of the CODEOWNERS file
+CODEOWNERS_CONTENT=$(cat << EOF
+# Lines starting with '#' are comments.
+# Each line is a file pattern followed by one or more owners.
+
+# More details are here: https://help.github.com/articles/about-codeowners/
+
+# The '*' pattern is global owners.
+
+# Order is important. The last matching pattern has the most precedence.
+# The folders are ordered as follows:
+
+# In each subsection folders are ordered first by depth, then alphabetically.
+# This should make it easy to add new rules without breaking existing ones.
+
+# Global rule:
+*$(IFS=','; for owner in $REPO_OWNERS; do printf " @${ORG}/${owner}"; done)
+
+
+EOF
+)
+
+# Function to create a new GitHub repository
+create_github_repo() {
+  local repo_name=$1
+  curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/repos" -d "{
+    \"name\": \"${repo_name}\",
+    \"private\": true,
+    \"auto_init\": true,
+    \"has_issues\": true,
+    \"has_projects\": false,
+    \"has_wiki\": true
+  }"
+}
+
+# Function to enable branch protection on the main branch
+enable_branch_protection() {
+  local repo_name=$1
+  curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/repos/${ORG}/${repo_name}/branches/main/protection" -d "{
+    \"required_status_checks\": null,
+    \"enforce_admins\": true,
+    \"required_pull_request_reviews\": {
+      \"dismiss_stale_reviews\": false,
+      \"require_code_owner_reviews\": true,
+      \"required_approving_review_count\": 1
+    },
+    \"restrictions\": null
+  }"
+}
+
+# Function to create a CODEOWNERS file in the repository
+create_codeowners_file() {
+  local repo_name=$1
+  curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/repos/${ORG}/${repo_name}/contents/.github/CODEOWNERS" -d "{
+    \"message\": \"Add CODEOWNERS file\",
+    \"content\": \"$(echo "${CODEOWNERS_CONTENT}" | base64 | tr -d '\n')\"
+  }"
+}
+
+# Function to add a team with admin permissions to the repository
+add_teams_to_repo() {
+  local repo_name=$1
+  local team_name=$2
+  curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${team_name}/repos/${ORG}/${repo_name}" -d "{
+    \"permission\": \"admin\"
+  }"
+}
+
+# Function to add a team with write permissions to the repository
+add_repo_owners_to_repo() {
+  local repo_name=$1
+  local team_name=$2
+  curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${team_name}/repos/${ORG}/${repo_name}" -d "{
+    \"permission\": \"push\"
+  }"
+}
+
+# Convert comma-separated repo names into an array
+REPO_NAMES=($(echo "${REPO_NAMES}" | tr ',' ' '))
+
+# Convert comma-separated admin teams into an array
+IFS=','
+ADMIN_TEAMS=($ADMIN_TEAMS)
+REPO_OWNERS=($REPO_OWNERS)
+unset IFS
+
+# Loop through each repository and perform the required actions
+for repo_name in "${REPO_NAMES[@]}"; do
+  echo "Creating repository ${repo_name}"
+  create_github_repo "${repo_name}"
+
+  echo "Creating CODEOWNERS file for ${repo_name}"
+  create_codeowners_file "${repo_name}"
+  
+  echo "Enabling branch protection for ${repo_name}"
+  enable_branch_protection "${repo_name}"
+
+  # Add each admin team to the repository
+  for team_name in "${ADMIN_TEAMS[@]}"; do
+    echo "Adding team ${team_name} as admin to ${repo_name}"
+    add_teams_to_repo "${repo_name}" "${team_name}"
+  done
+
+    # Add each repo owner team to the repository with write permissions, but only if it's not an admin team
+  for team_name in "${REPO_OWNERS[@]}"; do
+    if [[ ! "${ADMIN_TEAMS[*]}" =~ ${team_name} ]]; then
+      echo "Adding team ${team_name} as a repo owner (write permission) to ${repo_name}"
+      add_repo_owners_to_repo "${repo_name}" "${team_name}"
+    fi
+  done
+done

@@ -1,4 +1,4 @@
-#!/usr/bin/env /bin/bash
+#!/bin/bash
 set -euo pipefail
 
 ### GLOBAL VARIABLES
@@ -37,6 +37,11 @@ fi
 # Check if MONTH_END is set
 if [ -z "${MONTH_END}" ]; then
   echo "MONTH_END is empty. Please set your end date (YYYY-MM-DD) and try again"
+  exit 1
+fi
+
+if ! command -v jq > /dev/null 2>&1; then
+  echo "jq is not installed. Please install jq and try again"
   exit 1
 fi
 

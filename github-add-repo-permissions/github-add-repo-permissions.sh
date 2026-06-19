@@ -1,4 +1,4 @@
-#!/usr/bin/env /bin/bash
+#!/bin/bash
 set -euo pipefail
 
 ### GLOBAL VARIABLES
@@ -14,22 +14,38 @@ REPO_PUSH=${REPO_PUSH:-''}
 REPO_TRIAGE=${REPO_TRIAGE:-''}
 REPO_PULL=${REPO_PULL:-''}
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
 # Check if GITHUB_TOKEN is set
 if [ -z "${GITHUB_TOKEN}" ]; then
-  echo "GITHUB_TOKEN is empty. Please set your token and try again"
+  print_error "GITHUB_TOKEN is empty. Please set your token and try again"
   exit 1
 fi
 
 # Check if ORG is set
 if [ -z "${ORG}" ]; then
-  echo "ORG is empty. Please set your organization and try again"
+  print_error "ORG is empty. Please set your organization and try again"
+  exit 1
+fi
+
+if ! command -v jq > /dev/null 2>&1; then
+  print_error "jq is not installed. Please install jq and try again"
   exit 1
 fi
 
 # Check if at least one permission level is set
 if [ -z "${REPO_ADMIN}" ] && [ -z "${REPO_MAINTAIN}" ] && [ -z "${REPO_PUSH}" ] && [ -z "${REPO_TRIAGE}" ] && [ -z "${REPO_PULL}" ]; then
-  echo "Error: At least one permission level must be set."
-  echo "Available variables: REPO_ADMIN, REPO_MAINTAIN, REPO_PUSH, REPO_TRIAGE, REPO_PULL"
+  print_error "At least one permission level must be set."
+  print_error "Available variables: REPO_ADMIN, REPO_MAINTAIN, REPO_PUSH, REPO_TRIAGE, REPO_PULL"
   exit 1
 fi
 
@@ -37,9 +53,11 @@ fi
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/user")
 
 if [ "${RESPONSE}" -ne 200 ]; then
-  echo "Error: GITHUB_TOKEN is invalid or does not have required permissions."
+  print_error "GITHUB_TOKEN is invalid or does not have required permissions."
   exit 1
 fi
+
+print_status "Organization: ${ORG}"
 
 get_repo_pagination () {
     repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
@@ -54,18 +72,41 @@ apply_team_permissions () {
   local REPO_NAME=$1
   local PERMISSION=$2
   local TEAM_SLUGS=$3
+  local TEAM
+  local response
   
   # Loop through space-separated team slugs
   for TEAM in ${TEAM_SLUGS}; do
-    echo "  Granting ${PERMISSION} permission to team ${TEAM}"
-    curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${TEAM}/repos/${ORG}/${REPO_NAME}" -d "{\"permission\":\"${PERMISSION}\"}"
+    print_status "  Granting ${PERMISSION} permission to team ${TEAM}"
+    response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${TEAM}/repos/${ORG}/${REPO_NAME}" -d "{\"permission\":\"${PERMISSION}\"}")
+
+    if [ "${response}" -eq 204 ]; then
+      print_success "  Applied ${PERMISSION} to ${TEAM} on ${REPO_NAME}"
+      SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+      print_warning "  Failed ${PERMISSION} to ${TEAM} on ${REPO_NAME} (HTTP ${response})"
+      FAILURE_COUNT=$((FAILURE_COUNT + 1))
+    fi
   done
 }
 
 process_repos () {
+  local PAGE
+  local REPO
+  local repos_json
+
   for PAGE in $(limit_repo_pagination); do
-    for REPO in $(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=full_name" | jq -r 'sort_by(.name) | .[] | .name'); do
-      echo "Processing repo ${REPO}"
+    repos_json=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=full_name")
+
+    if ! echo "${repos_json}" | jq -e 'type == "array"' > /dev/null 2>&1; then
+      print_error "Unexpected API response for page ${PAGE}"
+      print_error "$(echo "${repos_json}" | jq -r '.message // "unknown error"')"
+      exit 1
+    fi
+
+    while IFS= read -r REPO; do
+      [ -z "${REPO}" ] && continue
+      print_status "Processing repo ${REPO}"
       
       # Apply admin permissions
       if [ -n "${REPO_ADMIN}" ]; then
@@ -94,8 +135,19 @@ process_repos () {
       
       # Add delay to prevent hitting GitHub rate limit
       sleep 5
-    done
+    done < <(echo "${repos_json}" | jq -r 'sort_by(.name) | .[] | .name')
   done
 }
 
+SUCCESS_COUNT=0
+FAILURE_COUNT=0
+
 process_repos
+
+print_success "Completed permission updates"
+print_status "Successful changes: ${SUCCESS_COUNT}"
+if [ "${FAILURE_COUNT}" -gt 0 ]; then
+  print_warning "Failed changes: ${FAILURE_COUNT}"
+else
+  print_status "Failed changes: 0"
+fi

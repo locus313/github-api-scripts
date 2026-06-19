@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # =============================================================================
 # GitHub Stars Organizer
 # Fetches all your starred repos and organizes them into GitHub Lists.
