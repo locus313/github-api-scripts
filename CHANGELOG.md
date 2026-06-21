@@ -7,15 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- `AGENTS.md` — AI agent guide with project overview, directory map, build/run, key patterns, and adding-a-new-script walkthrough
-- `.github/workflows/ci.yml` — shellcheck CI on all `.sh` files for every PR
-- `.github/workflows/copilot-setup-steps.yml` — pre-installs jq, shellcheck, and gitleaks for Copilot cloud agent
-- `.github/ISSUE_TEMPLATE/bug_report.yml` — structured bug report form
-- `.github/ISSUE_TEMPLATE/feature_request.yml` — structured feature request form
-- `.github/PULL_REQUEST_TEMPLATE.md` — PR checklist derived from script conventions
-- `.github/dependabot.yml` — monthly GitHub Actions version updates
-- `.mcp.json` — GitHub MCP server configuration for Copilot CLI
-- Maintenance matrix section in `.github/copilot-instructions.md`
+- `github-copilot-report`: NDJSON usage-metrics endpoints, Entra ID enrichment via `az rest`, auto-detection of credits per seat with promo/standard table, `--no-entra` flag
+- README: GitHub Actions integration examples (workflow_dispatch, artifact upload, environment protection)
+- `.github/workflows/update-readme-sha.yml` — automatically updates the pinned commit SHA in README.md on every push to `main`
+
+### Changed
+- README: updated all `actions/checkout` references from `v4` to `v7.0.0` (pinned SHA `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0`)
+- README: replaced `ref: main` in the GitHub Actions usage example with a pinned commit SHA, and updated the accompanying note to recommend SHA pinning
 
 ---
 
