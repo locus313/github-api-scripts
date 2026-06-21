@@ -54,45 +54,6 @@ print_status "Enterprise team slug: ${ENTERPRISE_TEAM_SLUG}"
 print_status "Org role to assign: ${ALL_REPO_READ_ROLE_NAME}"
 
 ###
-## Fetch all organization logins in the enterprise via GraphQL (cursor-based pagination)
-###
-get_enterprise_orgs () {
-  local orgs=()
-  local cursor=""
-  local has_next_page="true"
-
-  while [ "${has_next_page}" = "true" ]; do
-    local after_clause=""
-    if [ -n "${cursor}" ]; then
-      after_clause=", after: \\\"${cursor}\\\""
-    fi
-
-    local query="{\"query\":\"{ enterprise(slug: \\\"${ENTERPRISE}\\\") { organizations(first: 100${after_clause}) { nodes { login } pageInfo { hasNextPage endCursor } } } }\"}"
-
-    local response
-    response=$(curl -s \
-      -H "Authorization: token ${GITHUB_TOKEN}" \
-      -H "Content-Type: application/json" \
-      "${API_URL_PREFIX}/graphql" \
-      -d "${query}")
-
-    local batch
-    batch=$(echo "${response}" | jq -r '.data.enterprise.organizations.nodes[].login // empty' 2>/dev/null)
-
-    [ -z "${batch}" ] && break
-
-    while IFS= read -r org; do
-      orgs+=("${org}")
-    done <<< "${batch}"
-
-    has_next_page=$(echo "${response}" | jq -r '.data.enterprise.organizations.pageInfo.hasNextPage')
-    cursor=$(echo "${response}" | jq -r '.data.enterprise.organizations.pageInfo.endCursor')
-  done
-
-  printf '%s\n' "${orgs[@]}"
-}
-
-###
 ## Look up the numeric role_id for the all_repo_read built-in org role
 ###
 get_role_id () {

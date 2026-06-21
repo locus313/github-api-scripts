@@ -16,6 +16,11 @@
 #   require_command <cmd>                — exit if command not found
 #   validate_github_token [bearer]       — verify token via /user endpoint
 #   validate_token <VAR_NAME>            — verify a secondary token variable
+#   validate_slug <value> [label]        — exit if value contains unsafe chars
+#   gh_api <path|url> [curl args...]     — Bearer-auth REST helper with retry
+#   _paginate_orgs_endpoint <filter> <url_tpl>  — page through an org list
+#   _graphql_enterprise_orgs             — GraphQL cursor-based enterprise orgs
+#   get_enterprise_orgs                  — three-tier enterprise org resolver
 # =============================================================================
 
 ###
@@ -125,4 +130,166 @@ validate_slug() {
     print_error "Invalid ${label} '${val}': only alphanumeric, hyphen, and underscore are allowed"
     exit 1
   fi
+}
+
+###
+## gh_api <path_or_full_url> [extra curl args...]
+## GitHub REST/GraphQL API helper with Bearer auth and rate-limit retries.
+## Prepends API_URL_PREFIX when the first argument starts with /.
+## Returns __404__ / __422__ for those status codes rather than failing.
+## Any extra arguments after the URL are passed directly to curl (e.g. -X POST -d ...).
+###
+gh_api() {
+  local url="$1"
+  shift
+  [[ "${url}" == http* ]] || url="${API_URL_PREFIX}${url}"
+
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    local http_code body
+    body=$(curl -s -w "\n%{http_code}" \
+      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$@" "${url}")
+    http_code=$(echo "${body}" | tail -1)
+    body=$(echo "${body}" | head -n -1)
+
+    case "${http_code}" in
+      200) echo "${body}"; return 0 ;;
+      404) echo "__404__"; return 0 ;;
+      422) echo "__422__"; return 0 ;;
+      403|429)
+        print_warning "Rate limited (HTTP ${http_code}). Sleeping 60s before retry ${attempt}/5..."
+        sleep 60
+        ;;
+      *)
+        print_warning "HTTP ${http_code} for ${url} (attempt ${attempt}/5)"
+        sleep 5
+        ;;
+    esac
+  done
+
+  print_error "Failed to reach ${url} after 5 attempts"
+  return 1
+}
+
+###
+## _paginate_orgs_endpoint <jq_filter> <url_template>
+## Internal helper: pages through an org-list REST endpoint, printing one
+## login per line. Replace the literal string PAGE in url_template with the
+## current page number on each iteration.
+## Example:
+##   _paginate_orgs_endpoint '.[].login' "/user/orgs?per_page=100&page=PAGE"
+###
+_paginate_orgs_endpoint() {
+  local jq_filter="$1"
+  local url_template="$2"
+  local page=1
+  while true; do
+    local url resp orgs_on_page count
+    url="${url_template/PAGE/${page}}"
+    resp=$(gh_api "${url}")
+    if [[ "${resp}" == "__404__" || "${resp}" == "__422__" || -z "${resp}" ]]; then
+      break
+    fi
+    orgs_on_page=$(echo "${resp}" | jq -r "${jq_filter}" 2>/dev/null || true)
+    if [ -z "${orgs_on_page}" ]; then
+      break
+    fi
+    echo "${orgs_on_page}"
+    count=$(echo "${orgs_on_page}" | wc -l)
+    if [ "${count}" -lt 100 ]; then
+      break
+    fi
+    page=$(( page + 1 ))
+  done
+}
+
+###
+## _graphql_enterprise_orgs
+## Queries GraphQL for all organizations in ENTERPRISE using cursor-based
+## pagination. Works for enterprise members (not just owners).
+## Prints one org login per line. Returns 1 on any HTTP or GraphQL error.
+## Requires: ENTERPRISE, GITHUB_TOKEN, API_URL_PREFIX
+###
+_graphql_enterprise_orgs() {
+  local cursor="null"
+  while true; do
+    local query resp http_code body gql_errors has_next end_cursor
+
+    query=$(printf '{ "query": "{ enterprise(slug: \\"%s\\") { organizations(first: 100, after: %s) { nodes { login } pageInfo { hasNextPage endCursor } } } }" }' \
+      "${ENTERPRISE}" "${cursor}")
+
+    resp=$(curl -s -w "\n%{http_code}" \
+      -X POST \
+      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "${API_URL_PREFIX}/graphql" \
+      -d "${query}")
+
+    http_code=$(echo "${resp}" | tail -1)
+    body=$(echo "${resp}" | head -n -1)
+
+    if [[ "${http_code}" != "200" ]]; then
+      return 1
+    fi
+
+    gql_errors=$(echo "${body}" | jq -r '.errors // empty' 2>/dev/null || true)
+    if [ -n "${gql_errors}" ]; then
+      return 1
+    fi
+
+    echo "${body}" | jq -r '.data.enterprise.organizations.nodes[].login' 2>/dev/null || true
+
+    has_next=$(echo "${body}" | jq -r '.data.enterprise.organizations.pageInfo.hasNextPage')
+    end_cursor=$(echo "${body}" | jq -r '.data.enterprise.organizations.pageInfo.endCursor')
+
+    if [[ "${has_next}" != "true" ]]; then
+      break
+    fi
+    cursor="\"${end_cursor}\""
+  done
+}
+
+###
+## get_enterprise_orgs
+## Prints one org login per line using a three-tier strategy:
+##   1. REST /enterprises/{slug}/organizations  (enterprise-owner token)
+##   2. GraphQL enterprise(slug).organizations  (enterprise member token)
+##   3. /user/orgs fallback                     (any read:org token)
+## Requires: ENTERPRISE, GITHUB_TOKEN, API_URL_PREFIX
+###
+get_enterprise_orgs() {
+  print_status "Fetching organisations for enterprise '${ENTERPRISE}'..."
+
+  # -- Attempt 1: REST enterprise endpoint ---------------------------------
+  local probe
+  probe=$(gh_api "/enterprises/${ENTERPRISE}/organizations?per_page=1&page=1")
+  if [[ "${probe}" != "__404__" && "${probe}" != "__422__" && -n "${probe}" ]]; then
+    print_status "Using REST enterprise API endpoint."
+    _paginate_orgs_endpoint \
+      '.organizations[].login' \
+      "/enterprises/${ENTERPRISE}/organizations?per_page=100&page=PAGE"
+    return 0
+  fi
+
+  # -- Attempt 2: GraphQL enterprise query ---------------------------------
+  print_warning "REST enterprise endpoint unavailable — trying GraphQL enterprise query..."
+  local gql_orgs
+  gql_orgs=$(_graphql_enterprise_orgs 2>/dev/null || true)
+  if [ -n "${gql_orgs}" ]; then
+    print_status "Using GraphQL enterprise endpoint."
+    echo "${gql_orgs}"
+    return 0
+  fi
+
+  # -- Attempt 3: /user/orgs fallback --------------------------------------
+  print_warning "GraphQL enterprise query unavailable — falling back to /user/orgs."
+  print_warning "Set ORG_FILTER env var to restrict results to enterprise orgs only."
+  print_status  "  Example: export ORG_FILTER='^my-enterprise-prefix'"
+  _paginate_orgs_endpoint \
+    '.[].login' \
+    "/user/orgs?per_page=100&page=PAGE"
 }

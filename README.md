@@ -804,6 +804,10 @@ All scripts can leverage a shared utility library for common operations like val
 **API helpers:**
 - `get_repo_page_count <url>` — Get total page count from paginated REST endpoint
 - `validate_slug <value> <label>` — Exit if value contains characters other than alphanumeric, hyphen, or underscore
+- `gh_api <path|url> [curl args...]` — Bearer-auth REST helper with automatic rate-limit retry (up to 5 attempts); returns `__404__` / `__422__` for those status codes instead of failing
+- `_paginate_orgs_endpoint <jq_filter> <url_template>` — Page through an org-list REST endpoint, printing one login per line; use `PAGE` as a placeholder in the URL template
+- `_graphql_enterprise_orgs` — Cursor-based GraphQL pagination for all orgs in `ENTERPRISE`; prints one login per line
+- `get_enterprise_orgs` — Three-tier enterprise org resolver: tries REST `/enterprises/{slug}/organizations`, falls back to GraphQL, then falls back to `/user/orgs`
 
 ### Using the Shared Library in Scripts
 

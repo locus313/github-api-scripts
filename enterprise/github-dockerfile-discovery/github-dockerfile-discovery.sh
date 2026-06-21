@@ -81,52 +81,6 @@ check_prerequisites() {
 }
 
 ###
-## GitHub API helper – handles rate-limit retries
-## Usage: gh_api <path_or_url> [extra curl args...]
-###
-gh_api() {
-  local url="$1"
-  shift
-  # Prepend base URL if path starts with /
-  [[ "${url}" == http* ]] || url="${API_URL_PREFIX}${url}"
-
-  local attempt
-  for attempt in 1 2 3 4 5; do
-    local http_code
-    local body
-    body=$(curl -s -w "\n%{http_code}" \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "$@" "${url}")
-    http_code=$(echo "${body}" | tail -1)
-    body=$(echo "${body}" | head -n -1)
-
-    if [[ "${http_code}" == "200" ]]; then
-      echo "${body}"
-      return 0
-    elif [[ "${http_code}" == "403" || "${http_code}" == "429" ]]; then
-      local retry_after=60
-      print_warning "Rate limited (HTTP ${http_code}). Sleeping ${retry_after}s before retry ${attempt}/5..."
-      sleep "${retry_after}"
-    elif [[ "${http_code}" == "404" ]]; then
-      echo "__404__"
-      return 0
-    elif [[ "${http_code}" == "422" ]]; then
-      # Code search not available for this org
-      echo "__422__"
-      return 0
-    else
-      print_warning "HTTP ${http_code} for ${url} (attempt ${attempt}/5)"
-      sleep 5
-    fi
-  done
-
-  print_error "Failed to GET ${url} after 5 attempts"
-  return 1
-}
-
-###
 ## gh_api_link – like gh_api but also returns the Link header for pagination
 ## Writes body to stdout, sets global RESPONSE_LINK
 ###
@@ -166,140 +120,6 @@ gh_api_link() {
 
   print_error "Failed to GET ${url} after 5 attempts"
   return 1
-}
-
-###
-## Validate token
-###
-validate_token() {
-  print_status "Validating GitHub token..."
-  local resp
-  resp=$(gh_api "/user")
-  local login
-  login=$(echo "${resp}" | jq -r '.login // empty')
-  if [ -z "${login}" ]; then
-    print_error "GITHUB_TOKEN is invalid or lacks required scopes."
-    exit 1
-  fi
-  print_success "Token validated."
-}
-
-###
-## _paginate_orgs_endpoint <jq_filter> <url_template_with_PAGE_placeholder>
-## Internal helper: paginates an orgs list endpoint, prints one login per line.
-###
-_paginate_orgs_endpoint() {
-  local jq_filter="$1"
-  local url_template="$2"   # must contain the literal string PAGE
-  local page=1
-  while true; do
-    local url resp orgs_on_page count
-    url="${url_template/PAGE/${page}}"
-    resp=$(gh_api "${url}")
-    if [[ "${resp}" == "__404__" || "${resp}" == "__422__" || -z "${resp}" ]]; then
-      break
-    fi
-    orgs_on_page=$(echo "${resp}" | jq -r "${jq_filter}" 2>/dev/null || true)
-    if [ -z "${orgs_on_page}" ]; then
-      break
-    fi
-    echo "${orgs_on_page}"
-    count=$(echo "${orgs_on_page}" | wc -l)
-    if [ "${count}" -lt 100 ]; then
-      break
-    fi
-    page=$(( page + 1 ))
-  done
-}
-
-###
-## _graphql_enterprise_orgs
-## Queries the GraphQL API for enterprise orgs (works for enterprise members,
-## not just owners). Prints one org login per line.
-###
-_graphql_enterprise_orgs() {
-  local cursor="null"
-  while true; do
-    local query
-    query=$(printf '{ "query": "{ enterprise(slug: \\"%s\\") { organizations(first: 100, after: %s) { nodes { login } pageInfo { hasNextPage endCursor } } } }" }' \
-      "${ENTERPRISE}" "${cursor}")
-
-    local resp
-    resp=$(curl -s -w "\n%{http_code}" \
-      -X POST \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      -H "Content-Type: application/json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "${API_URL_PREFIX}/graphql" \
-      -d "${query}")
-
-    local http_code body
-    http_code=$(echo "${resp}" | tail -1)
-    body=$(echo "${resp}" | head -n -1)
-
-    if [[ "${http_code}" != "200" ]]; then
-      return 1
-    fi
-
-    # Surface any GraphQL-level errors (e.g. token lacks enterprise access)
-    local gql_errors
-    gql_errors=$(echo "${body}" | jq -r '.errors // empty' 2>/dev/null || true)
-    if [ -n "${gql_errors}" ]; then
-      return 1
-    fi
-
-    echo "${body}" | jq -r '.data.enterprise.organizations.nodes[].login' 2>/dev/null || true
-
-    local has_next end_cursor
-    has_next=$(echo "${body}" | jq -r '.data.enterprise.organizations.pageInfo.hasNextPage')
-    end_cursor=$(echo "${body}" | jq -r '.data.enterprise.organizations.pageInfo.endCursor')
-
-    if [[ "${has_next}" != "true" ]]; then
-      break
-    fi
-    cursor="\"${end_cursor}\""
-  done
-}
-
-###
-## get_enterprise_orgs
-## Prints one org login per line.
-## Strategy:
-##   1. Try /enterprises/{slug}/organizations REST endpoint (enterprise-owner token)
-##   2. Try GraphQL enterprise(slug).organizations      (enterprise member token)
-##   3. Fall back to /user/orgs                         (any read:org token)
-###
-get_enterprise_orgs() {
-  print_status "Fetching organisations for enterprise '${ENTERPRISE}'..."
-
-  # -- Attempt 1: REST enterprise endpoint --------------------------------
-  local probe
-  probe=$(gh_api "/enterprises/${ENTERPRISE}/organizations?per_page=1&page=1")
-  if [[ "${probe}" != "__404__" && "${probe}" != "__422__" && -n "${probe}" ]]; then
-    print_status "Using REST enterprise API endpoint."
-    _paginate_orgs_endpoint \
-      '.organizations[].login' \
-      "/enterprises/${ENTERPRISE}/organizations?per_page=100&page=PAGE"
-    return 0
-  fi
-
-  # -- Attempt 2: GraphQL enterprise query --------------------------------
-  print_warning "REST enterprise endpoint unavailable — trying GraphQL enterprise query..."
-  local gql_orgs
-  gql_orgs=$(_graphql_enterprise_orgs 2>/dev/null || true)
-  if [ -n "${gql_orgs}" ]; then
-    print_status "Using GraphQL enterprise endpoint."
-    echo "${gql_orgs}"
-    return 0
-  fi
-
-  # -- Attempt 3: /user/orgs fallback -------------------------------------
-  print_warning "GraphQL enterprise query unavailable — falling back to /user/orgs."
-  print_warning "Set ORG_FILTER env var to restrict results to enterprise orgs only."
-  print_status  "  Example: export ORG_FILTER='^my-enterprise-prefix'"
-  _paginate_orgs_endpoint \
-    '.[].login' \
-    "/user/orgs?per_page=100&page=PAGE"
 }
 
 ###
@@ -564,7 +384,7 @@ build_text_summary() {
 ###
 main() {
   check_prerequisites
-  validate_token
+  validate_github_token
 
   mkdir -p "${REPORT_DIR}"
 
