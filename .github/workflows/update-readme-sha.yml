@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -35,7 +36,16 @@ jobs:
           if git diff --quiet README.md; then
             echo "No SHA change detected, skipping commit."
           else
+            BRANCH="chore/update-readme-sha-${{ github.sha }}"
+            git checkout -b "${BRANCH}"
             git add README.md
             git commit -m "chore: update pinned SHA in README to ${{ github.sha }}"
-            git push
+            git push origin "${BRANCH}"
+            gh pr create \
+              --title "chore: update pinned SHA in README to ${{ github.sha }}" \
+              --body "Automated update of the pinned commit SHA in the GitHub Actions usage example in README.md." \
+              --base main \
+              --head "${BRANCH}"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
