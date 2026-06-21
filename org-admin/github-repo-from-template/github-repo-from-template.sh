@@ -72,7 +72,9 @@ require_env_var CD_GITHUB_TOKEN "CD GitHub token"
 validate_token CD_GITHUB_TOKEN
 
 # Create repo from template
-CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.baptiste-preview+json" "${API_URL_PREFIX}/repos/${ORG}/${TEMPLATE_REPO}/generate" -d '{"name":"'"${REPO_NAME}"'", "owner":"'"${ORG}"'", "private":true, "include_all_branches":true}')
+_payload=$(jq -n --arg name "${REPO_NAME}" --arg owner "${ORG}" \
+  '{"name":$name,"owner":$owner,"private":true,"include_all_branches":true}')
+CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/repos/${ORG}/${TEMPLATE_REPO}/generate" -d "${_payload}")
 
 if [ "${CREATE_RESPONSE}" -ne 201 ]; then
   echo "Error: failed to create ${ORG}/${REPO_NAME} from template ${TEMPLATE_REPO} (HTTP ${CREATE_RESPONSE})"

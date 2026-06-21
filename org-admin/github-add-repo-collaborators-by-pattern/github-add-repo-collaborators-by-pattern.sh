@@ -66,6 +66,13 @@ validate() {
   require_env_var ORG "GitHub organization"
   require_env_var COLLABORATORS "Collaborators list"
   require_env_var REPO_NAME_REGEX "Repo name regex"
+  case "${PERMISSION}" in
+    pull|triage|push|maintain|admin) ;;
+    *)
+      print_error "Invalid PERMISSION '${PERMISSION}'. Must be one of: pull, triage, push, maintain, admin"
+      exit 1
+      ;;
+  esac
   require_command jq
   validate_github_token
 }
@@ -95,8 +102,8 @@ add_collaborators_to_repos() {
   while IFS= read -r repo; do
     [ -z "${repo}" ] && continue
     for collaborator in ${collaborators_space}; do
-      response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/repos/${ORG}/${repo}/collaborators/${collaborator}" -d "{\"permission\": \"${PERMISSION}\"}")
-
+      _payload=$(jq -n --arg perm "${PERMISSION}" '{"permission":$perm}')
+      response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/repos/${ORG}/${repo}/collaborators/${collaborator}" -d "${_payload}")
       if [[ "${response}" =~ ^2 ]]; then
         echo "Added '${collaborator}' to '${repo}' with '${PERMISSION}' permission"
       else

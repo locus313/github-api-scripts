@@ -81,6 +81,23 @@ case "$ALERT_TYPE" in
     ;;
 esac
 
+# Validate dismiss/resolve reason values
+case "${DEPENDABOT_REASON}" in
+  fix_started|inaccurate|no_bandwidth|not_used|tolerable_risk) ;;
+  *)
+    print_error "Invalid DEPENDABOT_REASON '${DEPENDABOT_REASON}'. Must be one of: fix_started, inaccurate, no_bandwidth, not_used, tolerable_risk"
+    exit 1
+    ;;
+esac
+
+case "${SECRET_SCANNING_RESOLUTION}" in
+  false_positive|wont_fix|revoked|used_in_tests) ;;
+  *)
+    print_error "Invalid SECRET_SCANNING_RESOLUTION '${SECRET_SCANNING_RESOLUTION}'. Must be one of: false_positive, wont_fix, revoked, used_in_tests"
+    exit 1
+    ;;
+esac
+
 ###
 ## VALIDATION
 ###
@@ -193,14 +210,17 @@ close_dependabot_alerts() {
       continue
     fi
 
-    local http_status
+    local http_status _payload
+    _payload=$(jq -n \
+      --arg reason "${DEPENDABOT_REASON}" \
+      '{"state":"dismissed","dismissed_reason":$reason,"dismissed_comment":"Bulk dismissed by repository automation"}')
     http_status=$(curl -s -o /dev/null -w "%{http_code}" \
       -X PATCH \
       -H "Authorization: token ${GITHUB_TOKEN}" \
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       -H "Content-Type: application/json" \
-      -d "{\"state\":\"dismissed\",\"dismissed_reason\":\"${DEPENDABOT_REASON}\",\"dismissed_comment\":\"Bulk dismissed by repository automation\"}" \
+      -d "${_payload}" \
       "${API_URL_PREFIX}/repos/${ORG}/${repo}/dependabot/alerts/${alert_number}")
 
     if [ "${http_status}" -eq 200 ]; then
@@ -302,14 +322,17 @@ close_secret_scanning_alerts() {
       continue
     fi
 
-    local http_status
+    local http_status _payload
+    _payload=$(jq -n \
+      --arg resolution "${SECRET_SCANNING_RESOLUTION}" \
+      '{"state":"resolved","resolution":$resolution}')
     http_status=$(curl -s -o /dev/null -w "%{http_code}" \
       -X PATCH \
       -H "Authorization: token ${GITHUB_TOKEN}" \
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       -H "Content-Type: application/json" \
-      -d "{\"state\":\"resolved\",\"resolution\":\"${SECRET_SCANNING_RESOLUTION}\"}" \
+      -d "${_payload}" \
       "${API_URL_PREFIX}/repos/${ORG}/${repo}/secret-scanning/alerts/${alert_number}")
 
     if [ "${http_status}" -eq 200 ]; then

@@ -122,7 +122,7 @@ validate_token() {
     print_error "GITHUB_TOKEN is invalid or lacks required scopes."
     exit 1
   fi
-  print_success "Token valid — authenticated as: ${login}"
+  print_success "Token validated."
 }
 
 ###

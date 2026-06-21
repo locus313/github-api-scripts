@@ -43,6 +43,7 @@ SRC_REPO=${1:-''}
 DEST_REPO=${2:-''}
 OWNER_USERNAME=${OWNER_USERNAME:-''}
 WORKDIR=''
+_cred_script=''
 
 usage() {
   echo "Usage: $0 <source_repo_name> <destination_repo_name>"
@@ -50,6 +51,7 @@ usage() {
 }
 
 cleanup() {
+  [ -n "${_cred_script}" ] && rm -f "${_cred_script}"
   if [ -n "${WORKDIR}" ] && [ -d "${WORKDIR}" ]; then
     rm -rf "${WORKDIR}"
   fi
@@ -74,10 +76,12 @@ fi
 
 require_env_var OWNER_USERNAME "Owner username"
 require_command git
+require_command jq
 validate_github_token
 
 # Create repo
-CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.nebula-preview+json" "${API_URL_PREFIX}/orgs/${ORG}/repos" -d '{"name":"'"${DEST_REPO}"'", "visibility":"internal"}')
+_payload=$(jq -n --arg name "${DEST_REPO}" '{"name":$name,"visibility":"internal"}')
+CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/repos" -d "${_payload}")
 
 if [ "${CREATE_RESPONSE}" -ne 201 ] && [ "${CREATE_RESPONSE}" -ne 422 ]; then
   echo "Error: failed to create repository ${ORG}/${DEST_REPO} (HTTP ${CREATE_RESPONSE})"
@@ -95,11 +99,28 @@ fi
 WORKDIR=$(mktemp -d)
 cd "${WORKDIR}"
 
+# Set up a GIT_ASKPASS script so the token is read from an env var at runtime
+# rather than embedded in the remote URL (which would expose it in ps output)
+_cred_script=$(mktemp)
+chmod 700 "${_cred_script}"
+printf '%s\n' \
+  '#!/bin/bash' \
+  'case "$1" in' \
+  '  Username*) echo x-access-token ;;' \
+  '  *) printf "%s" "${GIT_CRED_TOKEN}" ;;' \
+  'esac' \
+  > "${_cred_script}"
+export GIT_CRED_TOKEN="${GITHUB_TOKEN}"
+export GIT_ASKPASS="${_cred_script}"
+export GIT_TERMINAL_PROMPT=0
+
 # Clone old repo locally
 git clone --bare "${GIT_URL_PREFIX}/${ORG}/${SRC_REPO}.git"
 
 # Push to new repo
 cd "${SRC_REPO}.git"
 git push --mirror "${GIT_URL_PREFIX}/${ORG}/${DEST_REPO}.git"
+
+unset GIT_ASKPASS GIT_CRED_TOKEN GIT_TERMINAL_PROMPT
 
 echo "Repository import complete: ${SRC_REPO} -> ${DEST_REPO}"

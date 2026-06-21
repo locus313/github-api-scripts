@@ -159,6 +159,7 @@ fetch_stars() {
   local cursor="" has_next="true" page=1
   local tmp_dir
   tmp_dir=$(mktemp -d)
+  trap 'rm -rf "$tmp_dir"' RETURN
 
   while [[ "$has_next" == "true" ]]; do
     printf "  Fetching page %d...\r" "$page" >&2
@@ -195,7 +196,6 @@ fetch_stars() {
   local total
   total=$(jq -s '[.[].data.viewer.starredRepositories.nodes[]] | length' "$tmp_dir"/page*.json)
   printf "  Fetched %d starred repos.          \n" "$total" >&2
-  rm -rf "$tmp_dir"
 }
 
 get_existing_lists() {
