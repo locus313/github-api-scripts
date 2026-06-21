@@ -373,8 +373,9 @@ parse_dockerfile_content() {
     arg_default=$(echo "${arg_line}" | sed -E 's/^ARG[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=?//')
     if [ -n "${arg_default}" ]; then
       # Escape special chars in default for use in sed replacement
+      # Strip newlines and escape &, /, \, and ; to prevent sed script injection
       local safe_default
-      safe_default=$(printf '%s' "${arg_default}" | sed 's/[&/\]/\\&/g')
+      safe_default=$(printf '%s' "${arg_default}" | tr -d '\n' | sed 's/[&/\;]/\\&/g')
       arg_sed_script="${arg_sed_script}s/\\\${${arg_name}}/${safe_default}/g;"
       arg_sed_script="${arg_sed_script}s/\\\$${arg_name}\b/${safe_default}/g;"
     fi

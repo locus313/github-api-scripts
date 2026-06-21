@@ -41,6 +41,9 @@ API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 MONTH_START=${MONTH_START:-''}
 MONTH_END=${MONTH_END:-''}
+REPORT_DIR="${REPORT_DIR:-./reports}"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+OUTPUT_FILE="${REPORT_DIR}/issues-report-${TIMESTAMP}.html"
 
 require_env_var GITHUB_TOKEN "GitHub token"
 require_env_var ORG "GitHub organization"
@@ -62,6 +65,7 @@ fi
 
 ISSUES_TEMP=$(mktemp)
 trap 'rm -f "${ISSUES_TEMP}"' EXIT
+mkdir -p "${REPORT_DIR}"
 
 get_issue_pagination () {
     issue_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
@@ -103,7 +107,7 @@ author_json () {
     TEST_PAYLOAD_AUTHOR_COUNT=$(echo "${TEST_PAYLOAD}" | jq -r --arg AUTHOR "${AUTHOR}" 'select(.author==$AUTHOR) | .count')
     TEST_PAYLOAD_AUTHOR_ISSUE_URL=$(cat "${ISSUES_TEMP}" | jq -r --arg AUTHOR "${AUTHOR}" 'select(.author==$AUTHOR) | .title, .issue_url')
     echo -e "<a href=\"https://github.com/${TEST_PAYLOAD_AUTHOR}\">${TEST_PAYLOAD_AUTHOR}</a> - ${TEST_PAYLOAD_AUTHOR_COUNT}"
-  done | sort -n -k 4,4 -r >> output.txt
+  done | sort -n -k 4,4 -r >> "${OUTPUT_FILE}"
 }
 
 contributor_json () {
@@ -114,7 +118,7 @@ contributor_json () {
     TEST_PAYLOAD_CONTRIBUTOR_COUNT=$(echo "${TEST_PAYLOAD}" | jq -r --arg CONTRIBUTOR "${CONTRIBUTOR}" 'select(.contributor==$CONTRIBUTOR) | .count')
     TEST_PAYLOAD_CONTRIBUTOR_ISSUE_URL=$(cat "${ISSUES_TEMP}" | jq -r --arg CONTRIBUTOR "${CONTRIBUTOR}" 'select(.contributor==$CONTRIBUTOR) | .issue_url')
     echo -e "<a href=\"https://github.com/${TEST_PAYLOAD_CONTRIBUTOR}\">${TEST_PAYLOAD_CONTRIBUTOR}</a> - ${TEST_PAYLOAD_CONTRIBUTOR_COUNT}"
-  done | sort -n -k 4,4 -r >> output.txt
+  done | sort -n -k 4,4 -r >> "${OUTPUT_FILE}"
 }
 
 repo_issues

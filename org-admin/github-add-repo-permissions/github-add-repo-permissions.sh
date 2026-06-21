@@ -43,7 +43,6 @@ source "${SCRIPT_DIR}/../../lib/github-common.sh"
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
-GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
 REPO_NAME_FILTER=${REPO_NAME_FILTER:-''}
 
 # Permission-specific team variables (space-separated team slugs)
@@ -89,6 +88,7 @@ apply_team_permissions () {
   
   # Loop through space-separated team slugs
   for TEAM in ${TEAM_SLUGS}; do
+    validate_slug "${TEAM}" "team slug"
     print_status "  Granting ${PERMISSION} permission to team ${TEAM}"
     response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${TEAM}/repos/${ORG}/${REPO_NAME}" -d "{\"permission\":\"${PERMISSION}\"}")
 

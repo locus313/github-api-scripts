@@ -88,8 +88,15 @@ validate_token() {
 ###
 ## validate_github_token [bearer]
 ## Convenience wrapper: validates GITHUB_TOKEN via the /user endpoint.
+## Also warns if API_URL_PREFIX does not look like a GitHub endpoint.
 ###
 validate_github_token() {
+  case "${API_URL_PREFIX}" in
+    https://api.github.com*|https://*.github.com*) ;;
+    *)
+      print_warning "API_URL_PREFIX '${API_URL_PREFIX}' does not look like a GitHub API endpoint."
+      ;;
+  esac
   validate_token GITHUB_TOKEN "${1:-}"
 }
 
@@ -104,4 +111,18 @@ get_repo_page_count() {
   pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${url}" \
     | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1)
   echo "${pages:-1}"
+}
+
+###
+## validate_slug <value> <label>
+## Exits with status 1 if the value contains characters other than
+## alphanumeric, hyphen, or underscore (guards URL path injection).
+###
+validate_slug() {
+  local val="$1"
+  local label="${2:-value}"
+  if [[ ! "${val}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    print_error "Invalid ${label} '${val}': only alphanumeric, hyphen, and underscore are allowed"
+    exit 1
+  fi
 }

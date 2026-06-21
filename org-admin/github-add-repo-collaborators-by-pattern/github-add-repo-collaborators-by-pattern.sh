@@ -102,6 +102,7 @@ add_collaborators_to_repos() {
   while IFS= read -r repo; do
     [ -z "${repo}" ] && continue
     for collaborator in ${collaborators_space}; do
+      validate_slug "${collaborator}" "collaborator"
       _payload=$(jq -n --arg perm "${PERMISSION}" '{"permission":$perm}')
       response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/repos/${ORG}/${repo}/collaborators/${collaborator}" -d "${_payload}")
       if [[ "${response}" =~ ^2 ]]; then

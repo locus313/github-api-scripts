@@ -49,6 +49,7 @@ require_env_var ORG "GitHub organization"
 require_env_var REPO_NAMES "Repo names list"
 require_env_var REPO_OWNERS "Repo owners list"
 require_command base64
+require_command jq
 validate_github_token
 
 # Define the content of the CODEOWNERS file
@@ -75,15 +76,15 @@ EOF
 
 # Function to create a new GitHub repository
 create_github_repo() {
-  local repo_name=$1
-  curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/repos" -d "{
-    \"name\": \"${repo_name}\",
-    \"private\": true,
-    \"auto_init\": true,
-    \"has_issues\": true,
-    \"has_projects\": false,
-    \"has_wiki\": true
-  }"
+  local repo_name="$1"
+  local _payload
+  _payload=$(jq -n --arg name "${repo_name}" \
+    '{"name":$name,"private":true,"auto_init":true,"has_issues":true,"has_projects":false,"has_wiki":true}')
+  curl -s -X POST \
+    -H "Authorization: token ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    "${API_URL_PREFIX}/orgs/${ORG}/repos" \
+    -d "${_payload}"
 }
 
 # Function to enable branch protection on the main branch
@@ -128,14 +129,10 @@ add_repo_owners_to_repo() {
   }"
 }
 
-# Convert comma-separated repo names into an array
-REPO_NAMES=($(echo "${REPO_NAMES}" | tr ',' ' '))
-
-# Convert comma-separated admin teams into an array
-IFS=','
-ADMIN_TEAMS=($ADMIN_TEAMS)
-REPO_OWNERS=($REPO_OWNERS)
-unset IFS
+# Convert comma-separated lists into arrays
+mapfile -t REPO_NAMES  < <(tr ',' '\n' <<< "${REPO_NAMES}")
+mapfile -t ADMIN_TEAMS < <(tr ',' '\n' <<< "${ADMIN_TEAMS:-}")
+mapfile -t REPO_OWNERS < <(tr ',' '\n' <<< "${REPO_OWNERS}")
 
 # Loop through each repository and perform the required actions
 for repo_name in "${REPO_NAMES[@]}"; do

@@ -233,6 +233,239 @@ cd org-admin/github-import-repo
 
 ---
 
+### Add Repository Collaborators by Pattern
+
+**Script:** `org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh`
+
+Adds one or more individual collaborators to all repositories in an organisation whose names match a given regex pattern.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+export COLLABORATORS="alice,bob"
+export REPO_NAME_REGEX='^service-'
+```
+
+**Usage:**
+```bash
+cd org-admin/github-add-repo-collaborators-by-pattern
+./github-add-repo-collaborators-by-pattern.sh
+```
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PERMISSION` | Permission level: `pull\|triage\|push\|maintain\|admin` | `push` |
+| `REPO_EXCLUDE_REGEX` | ERE regex to exclude matching repository names | — |
+
+**What it does:**
+- Iterates all repositories in the organization (paginated)
+- Filters to repos matching `REPO_NAME_REGEX`
+- Optionally excludes repos matching `REPO_EXCLUDE_REGEX`
+- Adds each specified collaborator with the configured permission level
+
+---
+
+### Archive Old Repositories
+
+**Script:** `org-admin/github-archive-old-repos/github-archive-old-repos.sh`
+
+Identifies and archives repositories that have not been updated within a configurable number of years. Generates a timestamped CSV report.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+```
+
+**Usage:**
+```bash
+cd org-admin/github-archive-old-repos
+./github-archive-old-repos.sh
+```
+
+**What it does:**
+- Fetches all repositories in the organization (paginated)
+- Calculates a cutoff date based on `YEARS_THRESHOLD`
+- Generates a timestamped CSV report in the `reports/` subdirectory
+- Displays a summary with the top 10 oldest repositories
+- Prompts for confirmation before archiving
+- Archives qualifying repositories via the GitHub API, skipping already-archived ones
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `YEARS_THRESHOLD` | Age threshold in years | `5` |
+
+---
+
+### Auto Repository Creation
+
+**Script:** `org-admin/github-auto-repo-creation/github-auto-repo-creation.sh`
+
+Creates one or more private GitHub repositories in an organisation with standard configuration: branch protection on the default branch, a CODEOWNERS file, and optional team permissions.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+export REPO_NAMES="repo1,repo2"
+export REPO_OWNERS="platform-team"
+```
+
+**Usage:**
+```bash
+cd org-admin/github-auto-repo-creation
+./github-auto-repo-creation.sh
+```
+
+**What it does:**
+- Creates each repository listed in `REPO_NAMES` as private
+- Configures branch protection on the default branch
+- Creates a CODEOWNERS file referencing the `REPO_OWNERS` teams
+- Grants admin access to teams listed in `ADMIN_TEAMS`
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ADMIN_TEAMS` | Comma-separated team slugs for admin access | — |
+
+> [!NOTE]
+> Requires `base64` in addition to `curl` and `jq` (used to encode the CODEOWNERS file content for the API).
+
+---
+
+### Close Archived Repository Security Alerts
+
+**Script:** `org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh`
+
+Dismisses or resolves all open security alerts (Dependabot, code scanning, and secret scanning) across all repositories in a GitHub organisation. Generates a CSV report of dismissed alerts.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+```
+
+**Usage:**
+```bash
+cd org-admin/github-close-archived-repo-security-alerts
+
+# Preview which alerts would be dismissed (no changes)
+./github-close-archived-repo-security-alerts.sh --dry-run
+
+# Dismiss only Dependabot alerts
+./github-close-archived-repo-security-alerts.sh --type dependabot
+
+# Dismiss all alert types
+./github-close-archived-repo-security-alerts.sh
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--type <type>` | Alert type: `dependabot \| code-scanning \| secret-scanning \| all` | `all` |
+| `--dry-run` | List alerts without dismissing them | — |
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEPENDABOT_REASON` | Dismiss reason for Dependabot alerts | `tolerable_risk` |
+| `CODE_SCANNING_REASON` | Dismiss reason for code scanning alerts | `won't fix` |
+| `SECRET_SCANNING_RESOLUTION` | Resolution for secret scanning alerts | `wont_fix` |
+
+**What it does:**
+- Enumerates all repositories in the organization
+- For each configured alert type, pages through all open alerts
+- Dismisses or resolves alerts with the configured reason
+- Generates a timestamped CSV report in the `reports/` subdirectory
+
+> [!IMPORTANT]
+> Requires a token with `security_events` and `repo` scope. Use `--dry-run` first to preview the scope of changes.
+
+---
+
+### Enable Issues
+
+**Script:** `org-admin/github-enable-issues/github-enable-issues.sh`
+
+Enables the Issues feature on every repository in a GitHub organisation that currently has it disabled. Skips archived repositories.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+```
+
+**Usage:**
+```bash
+cd org-admin/github-enable-issues
+./github-enable-issues.sh --dry-run   # Preview only
+./github-enable-issues.sh             # Apply changes
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | List repositories that would be updated without making changes |
+
+**What it does:**
+- Iterates all non-archived repositories in the organization (paginated)
+- Identifies repositories with Issues disabled
+- Enables Issues on each matching repository via the PATCH API
+
+---
+
+### Get Repository List
+
+**Script:** `org-admin/github-get-repo-list/github-get-repo-list.sh`
+
+Lists all repositories in a GitHub organisation and outputs their metadata to stdout in CSV format.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+```
+
+**Usage:**
+```bash
+cd org-admin/github-get-repo-list
+./github-get-repo-list.sh
+./github-get-repo-list.sh > repos.csv
+```
+
+**What it does:**
+- Fetches all repositories (paginated, 100 per page)
+- Outputs a CSV row per repository with: full name, owner, visibility, URL, description, fork flag, pushed/created/updated timestamps
+
+---
+
+### Migrate Internal Repositories to Private
+
+**Script:** `org-admin/github-migrate-internal-repos-to-private/github-migrate-internal-repos-to-private.sh`
+
+Converts all repositories with "internal" visibility to "private" in a GitHub organisation.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ORG="your-org"
+```
+
+**Usage:**
+```bash
+cd org-admin/github-migrate-internal-repos-to-private
+./github-migrate-internal-repos-to-private.sh
+```
+
+**What it does:**
+- Fetches all repositories with internal visibility (paginated)
+- Converts each to private via the PATCH API
+- Logs success or failure for each repository
+
+> [!WARNING]
+> Converting repositories from internal to private removes access from members of other organisations in the enterprise. This operation cannot be undone via the API.
+
+---
+
 ### Monthly Issues Report
 
 **Script:** `reporting/github-monthly-issues-report/github-monthly-issues-report.sh`
@@ -386,6 +619,113 @@ Total seats purchased: 200
 
 ---
 
+### Add Enterprise Team Read Permissions
+
+**Script:** `enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh`
+
+Assigns the built-in "All-repository read" organisation role to a specified enterprise team in every organisation within a GitHub Enterprise account. This grants read access to all current and future repositories without requiring per-repository assignments.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_enterprise_token"   # Must have admin:enterprise scope
+export ENTERPRISE="my-enterprise"
+export ENTERPRISE_TEAM_SLUG="platform-team"
+```
+
+**Usage:**
+```bash
+cd enterprise/github-add-enterprise-team-read-permissions
+./github-add-enterprise-team-read-permissions.sh
+```
+
+**What it does:**
+- Enumerates all organizations in the enterprise via GraphQL (cursor-based pagination)
+- Looks up the enterprise team ID and the target org role ID in each organization
+- Assigns the `all_repo_read` org role to the enterprise team in every organization
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ALL_REPO_READ_ROLE_NAME` | Org role name to assign | `all_repo_read` |
+
+> [!IMPORTANT]
+> Requires an enterprise-level token with `admin:enterprise` scope. Organization tokens will not work.
+
+---
+
+### Dockerfile Discovery
+
+**Script:** `enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh`
+
+Searches all organisations in a GitHub Enterprise account for Dockerfiles, extracts base image references from `FROM` instructions, and generates CSV reports to identify common base images across the estate.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ENTERPRISE="my-enterprise"
+```
+
+**Usage:**
+```bash
+cd enterprise/github-dockerfile-discovery
+./github-dockerfile-discovery.sh
+```
+
+**What it does:**
+- Discovers all orgs in the enterprise via GraphQL, or uses the `ORGS` override
+- Uses the GitHub code search API to locate Dockerfiles in each org
+- Fetches and parses each Dockerfile to extract `FROM` instructions (including multi-stage builds)
+- Generates three timestamped reports in `REPORT_DIR`:
+  - `dockerfile_discovery_detail_*.csv` — one row per image reference
+  - `dockerfile_discovery_summary_*.csv` — image usage counts
+  - `dockerfile_discovery_summary_*.txt` — plain-text summary
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REPORT_DIR` | Output directory for reports | `./reports` |
+| `ORGS` | Comma-separated org list; skips enterprise lookup | — |
+| `ORG_FILTER` | ERE regex to keep only matching org names | — |
+| `ORG_EXCLUDE` | ERE regex to drop matching org names | — |
+| `SEARCH_SLEEP` | Seconds between code-search requests | `2` |
+| `CONTENT_SLEEP` | Seconds between content-fetch requests | `1` |
+
+> [!NOTE]
+> Code search is heavily rate-limited. Increase `SEARCH_SLEEP` and `CONTENT_SLEEP` if you encounter `403` responses.
+
+---
+
+### Get Public Repositories
+
+**Script:** `enterprise/github-get-public-repos/github-get-public-repos.sh`
+
+Lists all repositories with public visibility across every organisation in a GitHub Enterprise account and writes a timestamped CSV report.
+
+**Required variables:**
+```bash
+export GITHUB_TOKEN="your_token"
+export ENTERPRISE="my-enterprise"
+```
+
+**Usage:**
+```bash
+cd enterprise/github-get-public-repos
+./github-get-public-repos.sh
+./github-get-public-repos.sh > public_repos.csv
+```
+
+**What it does:**
+- Discovers all orgs in the enterprise, or uses the `ORGS` override
+- Fetches all repositories in each org and filters to public visibility
+- Writes a timestamped CSV report in `REPORT_DIR` with: org, repo name, URL, description, created date, last pushed date
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REPORT_DIR` | Output directory for reports | `./reports` |
+| `ORGS` | Comma-separated org list; skips enterprise lookup | — |
+| `ORG_FILTER` | ERE regex to keep only matching org names | — |
+| `ORG_EXCLUDE` | ERE regex to drop matching org names | — |
+
+---
+
 ### Organize Starred Repositories
 
 **Script:** `personal/github-organize-stars/github-organize-stars.sh`
@@ -448,6 +788,7 @@ All scripts can leverage a shared utility library for common operations like val
 
 **API helpers:**
 - `get_repo_page_count <url>` — Get total page count from paginated REST endpoint
+- `validate_slug <value> <label>` — Exit if value contains characters other than alphanumeric, hyphen, or underscore
 
 ### Using the Shared Library in Scripts
 
@@ -668,7 +1009,7 @@ Consider adding approval steps or environment protection rules before running de
 ## Best Practices
 
 **Test on a test organization first**
-These scripts have no dry-run mode. Always validate on a non-production organization before running against production resources.
+Always validate on a non-production organization before running against production resources. Several scripts support a `--dry-run` flag (`github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-organize-stars`) that previews changes without applying them.
 
 **Rate limiting**
 Scripts include built-in delays (5 seconds between repository operations) to stay within GitHub's rate limits. For large organizations with hundreds of repos, expect longer execution times.

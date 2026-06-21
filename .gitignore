@@ -5,6 +5,9 @@
 **/reports/*.csv
 **/reports/*.txt
 
+# Monthly issues report output
+output.txt
+
 # Python bytecode/cache
 **/__pycache__/
 **/*.pyc
