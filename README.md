@@ -853,15 +853,15 @@ You can use these scripts in your own repository's workflows without copying or 
 
 ```yaml
 - name: Checkout github-api-scripts
-  uses: actions/checkout@v4
+  uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
   with:
     repository: locus313/github-api-scripts
-    ref: main         # Pin to a specific tag or SHA in production
+    ref: 1325656e2dad4f6b16b183cdd3676e05f00cb2b4
     path: github-api-scripts
 ```
 
 > [!NOTE]
-> For production workflows, pin `ref` to a specific tag (e.g., `v1.0.0`) or commit SHA rather than a branch name to ensure reproducibility and prevent unexpected changes.
+> For production workflows, pin `ref` to a specific commit SHA rather than a branch name to ensure reproducibility and prevent unexpected changes.
 
 ---
 
@@ -882,7 +882,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout github-api-scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: locus313/github-api-scripts
           ref: main
@@ -914,7 +914,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout github-api-scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: locus313/github-api-scripts
           ref: main
@@ -960,7 +960,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout github-api-scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: locus313/github-api-scripts
           ref: main
@@ -1000,10 +1000,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout your repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Checkout github-api-scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: locus313/github-api-scripts
           ref: main
