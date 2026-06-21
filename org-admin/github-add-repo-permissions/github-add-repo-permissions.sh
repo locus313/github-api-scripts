@@ -2,8 +2,10 @@
 # =============================================================================
 # github-add-repo-permissions.sh
 #
-# Grants team-level permissions across all repositories in a GitHub
-# organisation. Supports all five permission levels: admin, maintain, push,
+# Grants team-level permissions across repositories in a GitHub organisation.
+# By default all repositories are processed; set REPO_NAME_FILTER to restrict
+# to repos whose names start with a given prefix. Supports all five permission
+# levels: admin, maintain, push,
 # triage, and pull. At least one permission level must be specified.
 #
 # Usage:
@@ -13,14 +15,15 @@
 #   ./github-add-repo-permissions.sh
 #
 # Environment variables:
-#   GITHUB_TOKEN    Required. PAT with admin:org scope
-#   ORG             Required. GitHub organization name
-#   REPO_ADMIN      Optional. Space-separated team slugs to grant admin access
-#   REPO_MAINTAIN   Optional. Space-separated team slugs to grant maintain access
-#   REPO_PUSH       Optional. Space-separated team slugs to grant push access
-#   REPO_TRIAGE     Optional. Space-separated team slugs to grant triage access
-#   REPO_PULL       Optional. Space-separated team slugs to grant pull access
-#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#   GITHUB_TOKEN       Required. PAT with admin:org scope
+#   ORG                Required. GitHub organization name
+#   REPO_NAME_FILTER   Optional. Prefix filter for repository names (default: all repos)
+#   REPO_ADMIN         Optional. Space-separated team slugs to grant admin access
+#   REPO_MAINTAIN      Optional. Space-separated team slugs to grant maintain access
+#   REPO_PUSH          Optional. Space-separated team slugs to grant push access
+#   REPO_TRIAGE        Optional. Space-separated team slugs to grant triage access
+#   REPO_PULL          Optional. Space-separated team slugs to grant pull access
+#   API_URL_PREFIX     Optional. GitHub API base URL (default: https://api.github.com)
 #
 # Note: At least one of REPO_ADMIN, REPO_MAINTAIN, REPO_PUSH, REPO_TRIAGE,
 #       or REPO_PULL must be set.
@@ -41,6 +44,7 @@ GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 GIT_URL_PREFIX=${GIT_URL_PREFIX:-'https://github.com'}
+REPO_NAME_FILTER=${REPO_NAME_FILTER:-''}
 
 # Permission-specific team variables (space-separated team slugs)
 REPO_ADMIN=${REPO_ADMIN:-''}
@@ -63,6 +67,9 @@ fi
 validate_github_token
 
 print_status "Organization: ${ORG}"
+if [ -n "${REPO_NAME_FILTER}" ]; then
+  print_status "Repository filter: ${REPO_NAME_FILTER}*"
+fi
 
 get_repo_pagination () {
     repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
@@ -140,7 +147,7 @@ process_repos () {
       
       # Add delay to prevent hitting GitHub rate limit
       sleep 5
-    done < <(echo "${repos_json}" | jq -r 'sort_by(.name) | .[] | .name')
+    done < <(echo "${repos_json}" | jq -r --arg filter "${REPO_NAME_FILTER}" 'sort_by(.name) | .[] | select(.name | startswith($filter)) | .name')
   done
 }
 

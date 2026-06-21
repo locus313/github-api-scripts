@@ -139,6 +139,9 @@ export REPO_MAINTAIN="maintainers"              # Maintain permissions
 export REPO_PUSH="developers contributors"      # Write/push permissions
 export REPO_TRIAGE="support-team"               # Triage permissions
 export REPO_PULL="external-auditors"            # Read/pull permissions
+
+# Optional: restrict to repos whose names start with a given prefix
+export REPO_NAME_FILTER="my-service-"
 ```
 
 **Usage:**
@@ -149,6 +152,7 @@ cd org-admin/github-add-repo-permissions
 
 **What it does:**
 - Retrieves all repositories in the organization (paginated)
+- Filters to repositories whose names start with `REPO_NAME_FILTER` (all repos when unset)
 - Grants permissions to specified teams based on permission level
 - Supports multiple teams per permission level (space-separated)
 - Processes all five GitHub permission levels: admin, maintain, push, triage, pull
