@@ -71,6 +71,10 @@ validate_github_token
 require_env_var CD_GITHUB_TOKEN "CD GitHub token"
 validate_token CD_GITHUB_TOKEN
 
+validate_slug "${REPO_NAME}"     "repository name"
+validate_slug "${TEMPLATE_REPO}" "template repository name"
+validate_slug "${CD_USERNAME}"   "CD username"
+
 # Create repo from template
 _payload=$(jq -n --arg name "${REPO_NAME}" --arg owner "${ORG}" \
   '{"name":$name,"owner":$owner,"private":true,"include_all_branches":true}')
@@ -83,6 +87,7 @@ fi
 
 # Give internal teams permissions on the new repo
 for ADMIN_TEAM in ${REPO_ADMIN}; do
+  validate_slug "${ADMIN_TEAM}" "REPO_ADMIN team"
   ADMIN_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${ADMIN_TEAM}/repos/${ORG}/${REPO_NAME}" -d '{"permission":"admin"}')
 
   if [ "${ADMIN_RESPONSE}" -ne 204 ]; then
@@ -94,6 +99,7 @@ for ADMIN_TEAM in ${REPO_ADMIN}; do
 done
 
 for WRITE_TEAM in ${REPO_WRITE}; do
+  validate_slug "${WRITE_TEAM}" "REPO_WRITE team"
   WRITE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${WRITE_TEAM}/repos/${ORG}/${REPO_NAME}" -d '{"permission":"push"}')
 
   if [ "${WRITE_RESPONSE}" -ne 204 ]; then

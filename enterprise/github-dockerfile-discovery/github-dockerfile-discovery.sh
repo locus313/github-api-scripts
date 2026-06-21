@@ -592,6 +592,12 @@ main() {
 
 # ── Apply ORG_FILTER (inclusion) if set ────────────────────────────────
   if [ -n "${ORG_FILTER}" ]; then
+    local _rc=0
+    echo "" | grep -qE "${ORG_FILTER}" 2>/dev/null || _rc=$?
+    if [ "${_rc}" -eq 2 ]; then
+      print_error "ORG_FILTER is not a valid ERE regex: ${ORG_FILTER}"
+      exit 1
+    fi
     local filtered=()
     for org in "${orgs[@]}"; do
       if echo "${org}" | grep -qE "${ORG_FILTER}"; then
@@ -605,6 +611,12 @@ main() {
 
   # ── Apply ORG_EXCLUDE (exclusion) if set ────────────────────────────────
   if [ -n "${ORG_EXCLUDE}" ]; then
+    local _rc=0
+    echo "" | grep -qE "${ORG_EXCLUDE}" 2>/dev/null || _rc=$?
+    if [ "${_rc}" -eq 2 ]; then
+      print_error "ORG_EXCLUDE is not a valid ERE regex: ${ORG_EXCLUDE}"
+      exit 1
+    fi
     local kept=()
     for org in "${orgs[@]}"; do
       if ! echo "${org}" | grep -qE "${ORG_EXCLUDE}"; then

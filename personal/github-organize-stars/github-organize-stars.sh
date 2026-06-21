@@ -242,7 +242,9 @@ if [[ -f "$CACHE_FILE" ]]; then
 else
   echo "Fetching your starred repos..."
   mkdir -p "$(dirname "$CACHE_FILE")"
+  chmod 700 "$(dirname "$CACHE_FILE")"
   fetch_stars > "$CACHE_FILE"
+  chmod 600 "$CACHE_FILE"
 fi
 
 TOTAL=$(jq 'length' "$CACHE_FILE")

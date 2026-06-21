@@ -52,6 +52,17 @@ require_command base64
 require_command jq
 validate_github_token
 
+# Validate all user-supplied names before use in API URL paths
+while IFS= read -r _name; do
+  [ -n "${_name}" ] && validate_slug "${_name}" "REPO_NAMES value"
+done < <(tr ',' '\n' <<< "${REPO_NAMES}")
+while IFS= read -r _name; do
+  [ -n "${_name}" ] && validate_slug "${_name}" "ADMIN_TEAMS value"
+done < <(tr ',' '\n' <<< "${ADMIN_TEAMS:-}")
+while IFS= read -r _name; do
+  [ -n "${_name}" ] && validate_slug "${_name}" "REPO_OWNERS value"
+done < <(tr ',' '\n' <<< "${REPO_OWNERS}")
+
 # Define the content of the CODEOWNERS file
 CODEOWNERS_CONTENT=$(cat << EOF
 # Lines starting with '#' are comments.
@@ -115,6 +126,8 @@ create_codeowners_file() {
 add_teams_to_repo() {
   local repo_name=$1
   local team_name=$2
+  validate_slug "${repo_name}" "repository name"
+  validate_slug "${team_name}" "team name"
   curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${team_name}/repos/${ORG}/${repo_name}" -d "{
     \"permission\": \"admin\"
   }"
@@ -124,6 +137,8 @@ add_teams_to_repo() {
 add_repo_owners_to_repo() {
   local repo_name=$1
   local team_name=$2
+  validate_slug "${repo_name}" "repository name"
+  validate_slug "${team_name}" "team name"
   curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${team_name}/repos/${ORG}/${repo_name}" -d "{
     \"permission\": \"push\"
   }"

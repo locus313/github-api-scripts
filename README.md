@@ -80,7 +80,7 @@ Scripts use environment variables for configuration. Common variables include:
 | `GITHUB_TOKEN` | GitHub personal access token | Yes |
 | `ORG` | Organization name | Yes (most scripts) |
 | `API_URL_PREFIX` | GitHub API base URL (default: `https://api.github.com`) | No |
-| `GIT_URL_PREFIX` | GitHub base URL (default: `https://github.com`) | No |
+| `GIT_URL_PREFIX` | GitHub base URL (default: `https://github.com`). Must be a GitHub-family host (`github.com`, `*.github.com`, `*.ghe.com`, `*.githubenterprise.com`). | No |
 
 > [!NOTE]
 > The `*_PREFIX` variables support GitHub Enterprise Server. Set them to your enterprise domain to use these scripts with GHES.
@@ -200,6 +200,9 @@ cd org-admin/github-repo-from-template
 - Assigns write permissions to teams in `REPO_WRITE`
 - Invites CD user as collaborator and auto-accepts the invitation
 
+> [!NOTE]
+> `REPO_NAME` (CLI argument), `TEMPLATE_REPO`, `CD_USERNAME`, and all team slugs in `REPO_ADMIN` and `REPO_WRITE` are validated as slugs before use. Only alphanumeric characters, hyphens, and underscores are accepted.
+
 ---
 
 ### Import Repository
@@ -230,6 +233,9 @@ cd org-admin/github-import-repo
 
 > [!WARNING]
 > This creates a complete copy with full git history. Ensure you have sufficient disk space and network bandwidth for large repositories.
+
+> [!NOTE]
+> `GIT_URL_PREFIX` is validated against a GitHub-host allowlist before any git operations run. Non-GitHub URLs are rejected to prevent credential leakage. Repository names and `OWNER_USERNAME` must be valid slugs (alphanumeric, hyphen, and underscore only).
 
 ---
 
@@ -330,6 +336,9 @@ cd org-admin/github-auto-repo-creation
 
 > [!NOTE]
 > Requires `base64` in addition to `curl` and `jq` (used to encode the CODEOWNERS file content for the API).
+
+> [!NOTE]
+> All values in `REPO_NAMES`, `ADMIN_TEAMS`, and `REPO_OWNERS` are validated as slugs — only alphanumeric characters, hyphens, and underscores are allowed. The script exits with an error if any value fails this check.
 
 ---
 
@@ -691,6 +700,9 @@ cd enterprise/github-dockerfile-discovery
 > [!NOTE]
 > Code search is heavily rate-limited. Increase `SEARCH_SLEEP` and `CONTENT_SLEEP` if you encounter `403` responses.
 
+> [!NOTE]
+> `ORG_FILTER` and `ORG_EXCLUDE` are validated as syntactically correct ERE patterns before use. An invalid regex causes the script to exit immediately with an error rather than silently bypassing the filter.
+
 ---
 
 ### Get Public Repositories
@@ -723,6 +735,9 @@ cd enterprise/github-get-public-repos
 | `ORGS` | Comma-separated org list; skips enterprise lookup | — |
 | `ORG_FILTER` | ERE regex to keep only matching org names | — |
 | `ORG_EXCLUDE` | ERE regex to drop matching org names | — |
+
+> [!NOTE]
+> `ORG_FILTER` and `ORG_EXCLUDE` are validated as syntactically correct ERE patterns before use. An invalid regex causes the script to exit immediately with an error rather than silently bypassing the filter.
 
 ---
 

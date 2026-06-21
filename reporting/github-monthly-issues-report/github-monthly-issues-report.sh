@@ -78,7 +78,8 @@ limit_issue_pagination () {
 
 repo_issues () {
   for PAGE in $(limit_issue_pagination); do
-    for i in $(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&page=${PAGE}&per_page=100" | jq -r --arg s "${MONTH_START}" --arg e "${MONTH_END}" 'map(select(.created_at | . >= ($s+"T00:00") and . <= ($e+"T23:59"))) | sort_by(.number) | .[].number'); do
+    while IFS= read -r i; do
+      [ -z "${i}" ] && continue
       ISSUE_PAYLOAD=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}" -H "Accept: application/vnd.github.mercy-preview+json")
       ISSUE_TIMELINE_PAYLOAD=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}/timeline" -H "Accept: application/vnd.github.mockingbird-preview+json" | jq -r '.[] | select(.label.name=="Linked [AC]" or .label.name=="linked")')
       
@@ -95,7 +96,7 @@ repo_issues () {
         --arg contrib "${ISSUE_TIMELINE_LABELED_BY}" \
         '{"author":$author,"title":$title,"issue_url":$url,"contributor":$contrib}' \
         >> "${ISSUES_TEMP}"
-    done
+    done < <(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&page=${PAGE}&per_page=100" | jq -r --arg s "${MONTH_START}" --arg e "${MONTH_END}" 'map(select(.created_at | . >= ($s+"T00:00") and . <= ($e+"T23:59"))) | sort_by(.number) | .[].number')
   done
 }
 
@@ -105,7 +106,6 @@ author_json () {
     TEST_PAYLOAD=$(cat "${ISSUES_TEMP}" | jq -r '.author' | sort | uniq -c | awk -F " " '{print "{\"author\":""\""\ $2"\""",\"count\":" $1"}"}' | jq -r .)
     TEST_PAYLOAD_AUTHOR=$(echo "${TEST_PAYLOAD}" | jq -r --arg AUTHOR "${AUTHOR}" 'select(.author==$AUTHOR) | .author')
     TEST_PAYLOAD_AUTHOR_COUNT=$(echo "${TEST_PAYLOAD}" | jq -r --arg AUTHOR "${AUTHOR}" 'select(.author==$AUTHOR) | .count')
-    TEST_PAYLOAD_AUTHOR_ISSUE_URL=$(cat "${ISSUES_TEMP}" | jq -r --arg AUTHOR "${AUTHOR}" 'select(.author==$AUTHOR) | .title, .issue_url')
     echo -e "<a href=\"https://github.com/${TEST_PAYLOAD_AUTHOR}\">${TEST_PAYLOAD_AUTHOR}</a> - ${TEST_PAYLOAD_AUTHOR_COUNT}"
   done | sort -n -k 4,4 -r >> "${OUTPUT_FILE}"
 }
@@ -116,7 +116,6 @@ contributor_json () {
     TEST_PAYLOAD=$(cat "${ISSUES_TEMP}" | jq -r '.contributor' | sort | uniq -c | awk -F " " '{print "{\"contributor\":""\""\ $2"\""",\"count\":" $1"}"}' | jq -r .)
     TEST_PAYLOAD_CONTRIBUTOR=$(echo "${TEST_PAYLOAD}" | jq -r --arg CONTRIBUTOR "${CONTRIBUTOR}" 'select(.contributor==$CONTRIBUTOR) | .contributor')
     TEST_PAYLOAD_CONTRIBUTOR_COUNT=$(echo "${TEST_PAYLOAD}" | jq -r --arg CONTRIBUTOR "${CONTRIBUTOR}" 'select(.contributor==$CONTRIBUTOR) | .count')
-    TEST_PAYLOAD_CONTRIBUTOR_ISSUE_URL=$(cat "${ISSUES_TEMP}" | jq -r --arg CONTRIBUTOR "${CONTRIBUTOR}" 'select(.contributor==$CONTRIBUTOR) | .issue_url')
     echo -e "<a href=\"https://github.com/${TEST_PAYLOAD_CONTRIBUTOR}\">${TEST_PAYLOAD_CONTRIBUTOR}</a> - ${TEST_PAYLOAD_CONTRIBUTOR_COUNT}"
   done | sort -n -k 4,4 -r >> "${OUTPUT_FILE}"
 }

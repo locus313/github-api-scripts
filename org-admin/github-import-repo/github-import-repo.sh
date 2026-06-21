@@ -79,6 +79,22 @@ require_command git
 require_command jq
 validate_github_token
 
+# Validate GIT_URL_PREFIX is a recognised GitHub host to prevent credential leakage
+# via GIT_ASKPASS, which provides GITHUB_TOKEN to any host git connects to
+case "${GIT_URL_PREFIX}" in
+  https://github.com|https://*.github.com|https://*.ghe.com|https://*.githubenterprise.com)
+    ;;
+  *)
+    print_error "GIT_URL_PREFIX '${GIT_URL_PREFIX}' is not a recognised GitHub host. \
+Refusing to run git operations that would expose GITHUB_TOKEN to an unverified host."
+    exit 1
+    ;;
+esac
+
+validate_slug "${SRC_REPO}"       "source repository name"
+validate_slug "${DEST_REPO}"      "destination repository name"
+validate_slug "${OWNER_USERNAME}" "owner username"
+
 # Create repo
 _payload=$(jq -n --arg name "${DEST_REPO}" '{"name":$name,"visibility":"internal"}')
 CREATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/repos" -d "${_payload}")
