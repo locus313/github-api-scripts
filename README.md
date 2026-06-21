@@ -837,7 +837,21 @@ print_status "Processing organization: ${ORG}"
 
 ## Using Scripts in GitHub Actions
 
-All scripts can be easily integrated into GitHub Actions workflows. Here are practical examples:
+You can use these scripts in your own repository's workflows without copying or forking this repo. The pattern is to check out `locus313/github-api-scripts` as a step, then reference scripts from that path.
+
+```yaml
+- name: Checkout github-api-scripts
+  uses: actions/checkout@v4
+  with:
+    repository: locus313/github-api-scripts
+    ref: main         # Pin to a specific tag or SHA in production
+    path: github-api-scripts
+```
+
+> [!NOTE]
+> For production workflows, pin `ref` to a specific tag (e.g., `v1.0.0`) or commit SHA rather than a branch name to ensure reproducibility and prevent unexpected changes.
+
+---
 
 ### Example 1: Grant Team Permissions on Repository Changes
 
@@ -855,16 +869,21 @@ jobs:
   update-permissions:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout github-api-scripts
+        uses: actions/checkout@v4
+        with:
+          repository: locus313/github-api-scripts
+          ref: main
+          path: github-api-scripts
+
       - name: Grant team permissions to all repos
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
           ORG: my-org
           REPO_PUSH: developers maintainers
           REPO_TRIAGE: support-team
         run: |
-          ./org-admin/github-add-repo-permissions/github-add-repo-permissions.sh
+          ./github-api-scripts/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh
 ```
 
 ### Example 2: Archive Old Repositories Monthly
@@ -882,22 +901,27 @@ jobs:
   archive-old:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout github-api-scripts
+        uses: actions/checkout@v4
+        with:
+          repository: locus313/github-api-scripts
+          ref: main
+          path: github-api-scripts
+
       - name: Archive repositories not updated in 5 years
         env:
           GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
           ORG: my-org
           YEARS_THRESHOLD: 5
         run: |
-          ./org-admin/github-archive-old-repos/github-archive-old-repos.sh
-      
+          ./github-api-scripts/org-admin/github-archive-old-repos/github-archive-old-repos.sh
+
       - name: Upload report as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: archive-report
-          path: org-admin/github-archive-old-repos/reports/
+          path: github-api-scripts/org-admin/github-archive-old-repos/reports/
           retention-days: 30
 ```
 
@@ -923,11 +947,16 @@ jobs:
   create-repo:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout github-api-scripts
+        uses: actions/checkout@v4
+        with:
+          repository: locus313/github-api-scripts
+          ref: main
+          path: github-api-scripts
+
       - name: Create repository from template
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
           ORG: my-org
           TEMPLATE_REPO: template-repo
           REPO_ADMIN: ${{ github.event.inputs.repo-owner }}
@@ -935,8 +964,8 @@ jobs:
           CD_USERNAME: github-actions[bot]
           CD_GITHUB_TOKEN: ${{ secrets.CD_TOKEN }}
         run: |
-          ./org-admin/github-repo-from-template/github-repo-from-template.sh "${{ github.event.inputs.repo-name }}"
-      
+          ./github-api-scripts/org-admin/github-repo-from-template/github-repo-from-template.sh "${{ github.event.inputs.repo-name }}"
+
       - name: Log success
         if: success()
         run: |
@@ -945,7 +974,7 @@ jobs:
 
 ### Example 4: Weekly Dockerfile Discovery Report
 
-Track base images across your enterprise:
+Track base images across your enterprise and commit reports back to your own repository:
 
 ```yaml
 name: Discover Dockerfiles in Enterprise
@@ -958,8 +987,16 @@ jobs:
   discover-dockerfiles:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout your repository
+        uses: actions/checkout@v4
+
+      - name: Checkout github-api-scripts
+        uses: actions/checkout@v4
+        with:
+          repository: locus313/github-api-scripts
+          ref: main
+          path: .github-api-scripts
+
       - name: Discover Dockerfiles across enterprise
         env:
           GITHUB_TOKEN: ${{ secrets.ENTERPRISE_TOKEN }}
@@ -967,8 +1004,8 @@ jobs:
           REPORT_DIR: ./reports
         run: |
           mkdir -p ./reports
-          ./enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh
-      
+          ./.github-api-scripts/enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh
+
       - name: Upload reports as artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -976,7 +1013,7 @@ jobs:
           name: dockerfile-reports
           path: reports/
           retention-days: 60
-      
+
       - name: Commit reports to repository
         if: success()
         run: |
@@ -988,6 +1025,9 @@ jobs:
             git push
           )
 ```
+
+> [!NOTE]
+> Example 4 checks out your own repository at the workspace root (so `git push` commits to it), and places `github-api-scripts` in a hidden subdirectory (`.github-api-scripts`) to avoid conflicts with your repo's content.
 
 ### GitHub Actions Best Practices
 
@@ -1002,8 +1042,8 @@ env:
 ```yaml
 - name: Run script with logging
   run: |
-    ./org-admin/github-add-repo-permissions/github-add-repo-permissions.sh 2>&1 | tee -a execution.log
-    
+    ./github-api-scripts/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh 2>&1 | tee -a execution.log
+
 - name: Upload execution log
   if: always()
   uses: actions/upload-artifact@v4
