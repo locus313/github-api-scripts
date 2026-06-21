@@ -1,0 +1,77 @@
+name: Bug Report
+description: Report a broken or incorrect script behaviour
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as possible so it can be reproduced and fixed quickly.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the incorrect behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands and environment variable exports used (redact the token value).
+      placeholder: |
+        export GITHUB_TOKEN=ghp_REDACTED
+        export ORG=my-org
+        ./org-admin/github-get-repo-list/github-get-repo-list.sh
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should the script have done?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: Paste the full terminal output (redact any sensitive values).
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: script
+    attributes:
+      label: Affected script
+      description: Which script is affected?
+      placeholder: org-admin/github-get-repo-list/github-get-repo-list.sh
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: GitHub target
+      options:
+        - github.com
+        - GitHub Enterprise Server (GHES)
+        - GitHub Enterprise Cloud (GHEC)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, bash version, jq version
+      placeholder: |
+        OS: macOS 14 / Ubuntu 22.04
+        bash: 5.2
+        jq: 1.7
+    validations:
+      required: false

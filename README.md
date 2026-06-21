@@ -1,5 +1,6 @@
 # GitHub API Scripts
 
+[![AI Ready](https://img.shields.io/badge/AI--Ready-yes-brightgreen?style=flat)](https://github.com/johnpapa/ai-ready)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 ![Shell](https://img.shields.io/badge/Shell-Bash-89e051?style=flat-square&logo=gnu-bash&logoColor=white)
 [![GitHub API](https://img.shields.io/badge/GitHub_API-v3-blue?style=flat-square&logo=github)](https://docs.github.com/en/rest)
@@ -552,7 +553,7 @@ Generates a GitHub Copilot Enterprise licence and usage report. Shows every lice
 
 **Prerequisites:**
 - **[gh](https://cli.github.com)** — GitHub CLI authenticated with `read:enterprise` and `manage_billing:enterprise` scopes
-- **[az](https://learn.microsoft.com/en-us/cli/azure/)** — Azure CLI (optional, for Entra ID department enrichment)
+- **[az](https://learn.microsoft.com/en-us/cli/azure/)** — Azure CLI (must be installed; login required only for Entra ID department enrichment — pass `--no-entra` to skip the login requirement)
 - **[jq](https://stedolan.github.io/jq)** — JSON processor
 
 **Required variables:**
@@ -572,12 +573,23 @@ cd reporting/github-copilot-report
 
 # Authenticate first
 gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"
-az login   # optional, for department enrichment
+az login   # required to be installed; login needed only for department enrichment
 
 ./github-copilot-report.sh -e YOUR-ENTERPRISE
 ./github-copilot-report.sh -e YOUR-ENTERPRISE -d example.com
 ./github-copilot-report.sh -e YOUR-ENTERPRISE --no-entra
+./github-copilot-report.sh -e YOUR-ENTERPRISE --credits 1900 --output report.csv
 ```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-e, --enterprise SLUG` | GitHub Enterprise slug (or `$GITHUB_ENTERPRISE`) | — |
+| `-d, --upn-domain DOM` | Email domain for Entra lookup when GitHub carries no email (or `$UPN_DOMAIN`) | — |
+| `--credits N` | Override credits-per-seat value (or `$CREDITS_PER_SEAT_OVERRIDE`) | Auto-detected |
+| `--output FILE` | Output CSV filename | `copilot-report-YYYYMMDD.csv` |
+| `--no-entra` | Skip Entra ID department lookup | — |
 
 **What it does:**
 - Fetches all Copilot seats across the enterprise (deduplicated by user)
@@ -1096,3 +1108,18 @@ export GIT_URL_PREFIX="https://github.company.com"
 - [jq Manual](https://stedolan.github.io/jq/manual/)
 - [GitHub API Rate Limits](https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. **Fork** this repo and create a branch: `git checkout -b feat/my-new-script`
+2. **Install the pre-commit hook:** `./install-hooks.sh`
+3. **Add your script** following the conventions in [AGENTS.md](AGENTS.md):
+   - Create `<domain>/github-<name>/github-<name>.sh`
+   - Start with the `# ===` header and `set -euo pipefail`
+   - Source `lib/github-common.sh` and validate all inputs
+4. **Update README.md** with the env var table and usage example for your script
+5. **Run shellcheck:** `shellcheck --severity=warning --exclude=SC2034,SC1091 --shell=bash your-script.sh`
+6. **Test on a non-production org** before submitting
+7. **Open a PR** — the PR template will guide you through the checklist

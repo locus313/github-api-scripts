@@ -164,7 +164,8 @@ fetch_stars() {
   while [[ "$has_next" == "true" ]]; do
     printf "  Fetching page %d...\r" "$page" >&2
 
-    local page_file="$tmp_dir/page$(printf '%03d' $page).json"
+    local page_file
+    page_file="$tmp_dir/page$(printf '%03d' $page).json"
     if [[ -z "$cursor" ]]; then
       gh api graphql -f query='
         query { viewer { starredRepositories(first: 100) {
