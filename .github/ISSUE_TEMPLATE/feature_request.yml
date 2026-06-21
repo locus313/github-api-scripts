@@ -1,0 +1,47 @@
+name: Feature Request
+description: Suggest a new script or an improvement to an existing one
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea for a new script or a useful improvement? Describe it below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the GitHub admin task you're trying to automate.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the script or change you'd like to see, including what env vars it would accept and what it would output.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Script domain
+      description: Which folder would this belong in?
+      options:
+        - org-admin
+        - enterprise
+        - reporting
+        - personal
+        - lib (shared utility)
+        - not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches or existing tools you evaluated?
+    validations:
+      required: false
