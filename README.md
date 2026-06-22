@@ -119,7 +119,7 @@ Each script is a self-contained utility designed for a specific task. Navigate t
 ### Folder Layout (Domain-Based)
 
 - `org-admin/`: `github-add-repo-collaborators-by-pattern`, `github-add-repo-permissions`, `github-archive-old-repos`, `github-auto-repo-creation`, `github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-get-repo-list`, `github-import-repo`, `github-migrate-internal-repos-to-private`, `github-repo-from-template`
-- `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`
+- `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`, `github-install-enterprise-app`
 - `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`
 - `personal/`: `github-organize-stars`
 
@@ -637,6 +637,48 @@ Total seats purchased: 200
 
 > [!IMPORTANT]
 > This script requires an enterprise-level token with `read:enterprise` scope. Organization tokens will not work.
+
+---
+
+### Install Enterprise App
+
+**Script:** `enterprise/github-install-enterprise-app/github-install-enterprise-app.sh`
+
+Programmatically installs an enterprise-owned "automation" GitHub App into an enterprise-owned organization, using a second enterprise-owned "installer" GitHub App that holds the **Enterprise organization installations** permission. Follows GitHub's [Automating app installations](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-github-apps-for-your-enterprise/automate-installations) guide.
+
+Authentication is performed entirely with the two GitHub Apps (JWT → installation access token). No `GITHUB_TOKEN` / PAT is used, and JWTs and access tokens are never printed.
+
+**Required variables:**
+```bash
+export ENTERPRISE="my-enterprise"
+export ORG="my-org"                                   # Target org for the install
+export INSTALLER_APP_CLIENT_ID="Iv23li..."            # Installer app client ID
+export INSTALLER_APP_PRIVATE_KEY="~/installer-app.private-key.pem"
+export INSTALLER_APP_INSTALL_ID="12345678"           # Installer app's enterprise install ID
+export AUTOMATION_APP_CLIENT_ID="Iv23li..."          # App to install in the org
+```
+
+**Usage:**
+```bash
+cd enterprise/github-install-enterprise-app
+./github-install-enterprise-app.sh           # Install the automation app
+./github-install-enterprise-app.sh --dry-run # Authenticate only; make no changes
+```
+
+**What it does:**
+- Generates a short-lived RS256 JWT from the installer app's client ID and private key (via `openssl`)
+- Exchanges the JWT for an enterprise-scoped installation access token
+- Installs the automation app in the target organization and prints the new installation ID
+- Optionally verifies the install by minting an org-scoped token when `AUTOMATION_APP_PRIVATE_KEY` is supplied
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AUTOMATION_APP_PRIVATE_KEY` | Path to the automation app `.pem`; when set, verifies the new install by minting an org-scoped token | (unset — verification skipped) |
+| `REPO_SELECTION` | Repository access for the install: `all` or `selected` | `all` |
+| `API_URL_PREFIX` | GitHub API base URL | `https://api.github.com` |
+
+> [!IMPORTANT]
+> Requires two enterprise-owned GitHub Apps. The installer app must be installed on the enterprise account with read and write access to **Enterprise organization installations**. This script additionally requires `openssl` for JWT generation.
 
 ---
 

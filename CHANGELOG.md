@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `github-install-enterprise-app` — programmatically installs an enterprise-owned automation GitHub App into an org using an installer GitHub App (JWT → installation token flow); supports `--dry-run` and optional org-scoped token verification. Adds `openssl` as a dependency
 - `github-copilot-report`: NDJSON usage-metrics endpoints, Entra ID enrichment via `az rest`, auto-detection of credits per seat with promo/standard table, `--no-entra` flag
 - README: GitHub Actions integration examples (workflow_dispatch, artifact upload, environment protection)
 - `.github/workflows/update-readme-sha.yml` — automatically updates the pinned commit SHA in README.md on every push to `main`
