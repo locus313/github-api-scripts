@@ -146,8 +146,15 @@ generate_jwt() {
   signing_input="${header}.${payload}"
 
   signature=$(printf '%s' "${signing_input}" \
-    | openssl dgst -sha256 -sign "${pem_path}" -binary \
+    | openssl dgst -sha256 -sign "${pem_path}" -binary 2>/dev/null \
     | base64url)
+
+  if [ -z "${signature}" ]; then
+    print_error "Failed to sign JWT with private key: ${pem_path}"
+    print_error "The key must be an unencrypted PEM (GitHub app keys start with '-----BEGIN RSA PRIVATE KEY-----')."
+    print_error "Verify it with: openssl rsa -in '${pem_path}' -check -noout"
+    return 1
+  fi
 
   printf '%s.%s' "${signing_input}" "${signature}"
 }
@@ -163,7 +170,9 @@ mint_installation_token() {
   local install_id="$3"
   local jwt response http_code body token message
 
-  jwt=$(generate_jwt "${client_id}" "${pem_path}")
+  if ! jwt=$(generate_jwt "${client_id}" "${pem_path}"); then
+    return 1
+  fi
 
   response=$(curl -s -w "\n%{http_code}" -X POST \
     -H "Authorization: Bearer ${jwt}" \
@@ -172,7 +181,7 @@ mint_installation_token() {
     "${API_URL_PREFIX}/app/installations/${install_id}/access_tokens")
 
   http_code=$(echo "${response}" | tail -1)
-  body=$(echo "${response}" | head -n -1)
+  body=$(echo "${response}" | sed '$d')
 
   if [ "${http_code}" != "201" ]; then
     message=$(echo "${body}" | jq -r '.message // empty' 2>/dev/null || true)
@@ -215,7 +224,7 @@ INSTALL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
     '{client_id: $client_id, repository_selection: $repository_selection}')")
 
 INSTALL_HTTP_CODE=$(echo "${INSTALL_RESPONSE}" | tail -1)
-INSTALL_BODY=$(echo "${INSTALL_RESPONSE}" | head -n -1)
+INSTALL_BODY=$(echo "${INSTALL_RESPONSE}" | sed '$d')
 
 case "${INSTALL_HTTP_CODE}" in
   200|201)
