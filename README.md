@@ -898,7 +898,7 @@ You can use these scripts in your own repository's workflows without copying or 
   uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
   with:
     repository: locus313/github-api-scripts
-    ref: 37982f260b2b5306ca390c4f7e6b8fcdd1e40f8b
+    ref: f9f5e0c50e030b7be9dfa56eeca9eb1a7453cdee
     path: github-api-scripts
 ```
 
