@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # github-add-enterprise-team-read-permissions.sh
 #

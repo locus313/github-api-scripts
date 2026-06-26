@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # github-add-repo-collaborators-by-pattern.sh
 #

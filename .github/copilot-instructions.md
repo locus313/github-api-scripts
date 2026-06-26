@@ -32,7 +32,7 @@ environment variable the script reads (Required/Optional), and every external
 command it depends on.
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # github-<script-name>.sh
 #

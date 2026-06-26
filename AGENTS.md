@@ -96,7 +96,7 @@ There is no automated test suite. The validation approach is:
 Every script begins with a `# ===` header (exactly 79 `=` chars), then immediately `set -euo pipefail`:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # github-<name>.sh
 #
