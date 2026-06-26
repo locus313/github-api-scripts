@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.1.2](https://github.com/locus313/github-api-scripts/compare/v1.1.1...v1.1.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* handle __404__ sentinel in github-dockerfile-discovery ([#25](https://github.com/locus313/github-api-scripts/issues/25)) ([6ab08f1](https://github.com/locus313/github-api-scripts/commit/6ab08f1c82d328fadc306707c544b62cc233a2ea))
+
 ## [1.1.1](https://github.com/locus313/github-api-scripts/compare/v1.1.0...v1.1.1) (2026-06-26)
 
 
