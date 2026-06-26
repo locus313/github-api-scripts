@@ -1,0 +1,49 @@
+name: 'Close Archived Repo Security Alerts'
+description: 'Dismiss all open Dependabot, code-scanning, and secret-scanning alerts on archived repositories'
+inputs:
+  github-token:
+    description: 'PAT with security_events and repo scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  type:
+    description: 'Alert type to dismiss: dependabot, code-scanning, secret-scanning, or all'
+    required: false
+    default: 'all'
+  dry-run:
+    description: 'List alerts without dismissing them'
+    required: false
+    default: 'false'
+  dependabot-reason:
+    description: 'Dismiss reason for Dependabot alerts'
+    required: false
+    default: 'tolerable_risk'
+  code-scanning-reason:
+    description: "Dismiss reason for code-scanning alerts"
+    required: false
+    default: "won't fix"
+  secret-scanning-resolution:
+    description: 'Resolution for secret-scanning alerts'
+    required: false
+    default: 'wont_fix'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Close archived repo security alerts
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        DEPENDABOT_REASON: ${{ inputs.dependabot-reason }}
+        CODE_SCANNING_REASON: ${{ inputs.code-scanning-reason }}
+        SECRET_SCANNING_RESOLUTION: ${{ inputs.secret-scanning-resolution }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: |
+        ARGS=(--type "${{ inputs.type }}")
+        [[ "${{ inputs.dry-run }}" == "true" ]] && ARGS+=(--dry-run)
+        "${{ github.action_path }}/github-close-archived-repo-security-alerts.sh" "${ARGS[@]}"

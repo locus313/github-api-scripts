@@ -1,0 +1,67 @@
+name: 'Install Enterprise GitHub App'
+description: 'Install an enterprise-owned GitHub App into an organization using an installer app (JWT flow)'
+inputs:
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  org:
+    description: 'Target organization slug'
+    required: true
+  installer-app-client-id:
+    description: 'Client ID of the installer GitHub App'
+    required: true
+  installer-app-private-key:
+    description: 'Private key content (.pem) of the installer GitHub App'
+    required: true
+  installer-app-install-id:
+    description: "Installer app's enterprise installation ID"
+    required: true
+  automation-app-client-id:
+    description: 'Client ID of the automation GitHub App to install'
+    required: true
+  automation-app-private-key:
+    description: 'Private key content (.pem) of the automation GitHub App (optional; used to verify the new installation)'
+    required: false
+    default: ''
+  repo-selection:
+    description: 'Repository selection for the app installation: all or selected'
+    required: false
+    default: 'all'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+  dry-run:
+    description: 'Authenticate installer app but skip actual installation'
+    required: false
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Install enterprise GitHub App
+      shell: bash
+      env:
+        ENTERPRISE: ${{ inputs.enterprise }}
+        ORG: ${{ inputs.org }}
+        INSTALLER_APP_CLIENT_ID: ${{ inputs.installer-app-client-id }}
+        INSTALLER_APP_PRIVATE_KEY_CONTENT: ${{ inputs.installer-app-private-key }}
+        INSTALLER_APP_INSTALL_ID: ${{ inputs.installer-app-install-id }}
+        AUTOMATION_APP_CLIENT_ID: ${{ inputs.automation-app-client-id }}
+        AUTOMATION_APP_PRIVATE_KEY_CONTENT: ${{ inputs.automation-app-private-key }}
+        REPO_SELECTION: ${{ inputs.repo-selection }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: |
+        INSTALLER_KEY_FILE=$(mktemp --suffix=.pem)
+        trap 'rm -f "$INSTALLER_KEY_FILE" "${AUTO_KEY_FILE:-}"' EXIT
+        printf '%s' "$INSTALLER_APP_PRIVATE_KEY_CONTENT" > "$INSTALLER_KEY_FILE"
+        export INSTALLER_APP_PRIVATE_KEY="$INSTALLER_KEY_FILE"
+
+        if [[ -n "$AUTOMATION_APP_PRIVATE_KEY_CONTENT" ]]; then
+          AUTO_KEY_FILE=$(mktemp --suffix=.pem)
+          printf '%s' "$AUTOMATION_APP_PRIVATE_KEY_CONTENT" > "$AUTO_KEY_FILE"
+          export AUTOMATION_APP_PRIVATE_KEY="$AUTO_KEY_FILE"
+        fi
+
+        ARGS=()
+        [[ "${{ inputs.dry-run }}" == "true" ]] && ARGS+=(--dry-run)
+        "${{ github.action_path }}/github-install-enterprise-app.sh" "${ARGS[@]}"

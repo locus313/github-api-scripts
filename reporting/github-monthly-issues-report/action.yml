@@ -1,0 +1,40 @@
+name: 'Monthly Issues Report'
+description: 'Generate an HTML report of issues created within a date range'
+inputs:
+  github-token:
+    description: 'PAT with repo scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  repo:
+    description: 'Repository name'
+    required: true
+  month-start:
+    description: 'Start of the reporting period (YYYY-MM-DD)'
+    required: true
+  month-end:
+    description: 'End of the reporting period (YYYY-MM-DD)'
+    required: true
+  report-dir:
+    description: 'Output directory for the HTML report'
+    required: false
+    default: './reports'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Generate monthly issues report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        REPO: ${{ inputs.repo }}
+        MONTH_START: ${{ inputs.month-start }}
+        MONTH_END: ${{ inputs.month-end }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-monthly-issues-report.sh

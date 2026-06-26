@@ -1,0 +1,42 @@
+name: 'Archive Old Repositories'
+description: 'Archive repositories that have not been updated within a configurable age threshold'
+inputs:
+  github-token:
+    description: 'PAT with repo scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  years-threshold:
+    description: 'Age threshold in years; repositories not updated within this period are archived'
+    required: false
+    default: '5'
+  auto-confirm:
+    description: 'Skip the interactive confirmation prompt; required for non-interactive CI use'
+    required: false
+    default: 'false'
+  report-dir:
+    description: 'Output directory for the CSV report'
+    required: false
+    default: './reports'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Archive old repositories
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        YEARS_THRESHOLD: ${{ inputs.years-threshold }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: |
+        if [[ "${{ inputs.auto-confirm }}" == "true" ]]; then
+          echo "yes" | "${{ github.action_path }}/github-archive-old-repos.sh"
+        else
+          "${{ github.action_path }}/github-archive-old-repos.sh"
+        fi

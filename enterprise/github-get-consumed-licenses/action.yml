@@ -1,0 +1,23 @@
+name: 'Get Consumed Licenses'
+description: 'Report GitHub Enterprise consumed licence seat counts'
+inputs:
+  github-token:
+    description: 'PAT with manage_billing:enterprise scope'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Get consumed licenses
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ENTERPRISE: ${{ inputs.enterprise }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-get-consumed-licenses.sh

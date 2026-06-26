@@ -218,14 +218,31 @@ Uses API version `2026-03-10` and the new usage-metrics NDJSON endpoints (signed
 2. Create script: `github-<action-verb-object>.sh` (match directory name)
 3. Source `lib/github-common.sh` for validation and output helpers
 4. Start with the standard boilerplate (see Script Anatomy above)
-5. Document in README.md following existing format:
+5. Create `action.yml` in the same directory — expose every env var as a named input (required inputs without defaults, optional inputs with sensible defaults); map CLI flags such as `--dry-run` and `--type` to boolean/string inputs and build an `ARGS` array in the `run:` step. Mirror the pattern of any existing `action.yml`.
+6. Document in README.md following existing format:
    - Use case description
    - Required variables table
    - Usage example with exports
    - Output format (if applicable)
+   - Add a row to the Available Actions table in the "Using Scripts in GitHub Actions" section
 
 ### Testing Approach
 - **Always test on a test organization first**
+
+### Commit Messages — Conventional Commits (required)
+
+All commits **must** follow [Conventional Commits](https://www.conventionalcommits.org/). Release Please reads commit messages to auto-generate `CHANGELOG.md` and determine the version bump. Never update `CHANGELOG.md` manually.
+
+| Prefix | Effect | Example |
+|--------|--------|---------|
+| `feat:` | minor bump | `feat: add REPO_NAME_FILTER to github-add-repo-permissions` |
+| `fix:` | patch bump | `fix: make REPORT_DIR overridable in github-archive-old-repos` |
+| `feat!:` / `BREAKING CHANGE:` | major bump | `feat!: rename ENTERPRISE_SLUG to ENTERPRISE` |
+| `docs:` | patch bump (visible) | `docs: update GitHub Actions examples in README` |
+| `chore:` | no bump (hidden) | `chore: update actions/checkout to v7` |
+| `ci:` | no bump (hidden) | `ci: pin release-please-action SHA` |
+| `refactor:` | no bump (hidden) | `refactor: extract pagination helper` |
+
 ### Variable Naming Conventions
 - `GITHUB_TOKEN` — main admin token
 ### Dependencies
@@ -243,6 +260,7 @@ Keep new scripts dependency-minimal; document any non-standard dependencies expl
 7. **URL encoding:** Labels in API calls must be URL-encoded (`Linked [AC]` → `Linked%20[AC]`)
 8. **Public repo filtering:** Do not rely on `?type=public` for enterprise-managed orgs — fetch all and filter in jq
 9. **macOS vs Linux date:** `github-archive-old-repos.sh` handles both BSD `date -v` (macOS) and GNU `date -d` (Linux)
+10. **Never edit CHANGELOG.md manually** — it is fully managed by Release Please via Conventional Commits
 
 ## Maintenance Matrix
 
@@ -250,15 +268,15 @@ When you change one of these files, you must also update the files in the "Also 
 
 | When you change… | Also update |
 |------------------|-------------|
-| `lib/github-common.sh` — any public function signature or behaviour | All 19 scripts that source it; verify each caller still passes the right arguments. Check with: `grep -r "source.*github-common" . --include="*.sh"` |
+| `lib/github-common.sh` — any public function signature or behaviour | All 18 scripts that source it; verify each caller still passes the right arguments. Check with: `grep -r "github-common" . --include="*.sh"` |
 | `lib/github-common.sh` — add a new helper function | `AGENTS.md` shared library table; `README.md` if the function affects usage |
-| Any script's required env vars | That script's `# ===` header comment; the corresponding README.md section's env var table |
-| Any script's optional env vars or defaults | Same as above |
-| Any script's `--dry-run` or CLI flag behaviour | README.md usage example for that script |
+| Any script's required env vars | That script's `# ===` header comment; the corresponding README.md section's env var table; that script's `action.yml` inputs (add/remove required inputs to match) |
+| Any script's optional env vars or defaults | Same as above; update the `action.yml` optional inputs and their defaults |
+| Any script's `--dry-run` or CLI flag behaviour | README.md usage example for that script; that script's `action.yml` inputs and `run:` step flag construction |
 | `README.md` — script documentation | Verify the script's `# ===` header comment still matches (env vars, options, requirements) |
 | `.githooks/pre-commit` | `install-hooks.sh` if hook path or installation instructions change; README.md Best Practices section |
 | `install-hooks.sh` | README.md Installation section |
-| Add a new script | `README.md` (add use case, env var table, usage example); `CHANGELOG.md` under `[Unreleased]` |
+| Add a new script | `action.yml` in the same directory; `README.md` (add use case, env var table, usage example, Available Actions table row) |
 | Add a new domain folder | `README.md` top-level structure description; `AGENTS.md` Repository Structure section |
 | `.github/workflows/ci.yml` — shellcheck flags | `.githooks/pre-commit` shellcheck invocation (keep them in sync) |
 | `.github/workflows/copilot-setup-steps.yml` — tool versions | `AGENTS.md` Tech Stack table |

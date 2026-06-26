@@ -1,0 +1,53 @@
+name: 'Dockerfile Discovery'
+description: 'Discover Dockerfiles and extract FROM instructions across all enterprise organizations'
+inputs:
+  github-token:
+    description: 'PAT with read:org and repo scope'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  report-dir:
+    description: 'Output directory for the CSV reports'
+    required: false
+    default: './reports'
+  orgs:
+    description: 'Comma-separated list of org names; skips enterprise org lookup when set'
+    required: false
+    default: ''
+  org-filter:
+    description: 'ERE regex to keep only matching org names'
+    required: false
+    default: ''
+  org-exclude:
+    description: 'ERE regex to exclude matching org names'
+    required: false
+    default: ''
+  search-sleep:
+    description: 'Seconds to sleep between code-search API requests'
+    required: false
+    default: '2'
+  content-sleep:
+    description: 'Seconds to sleep between content-fetch API requests'
+    required: false
+    default: '1'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Discover Dockerfiles across enterprise
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ENTERPRISE: ${{ inputs.enterprise }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        ORGS: ${{ inputs.orgs }}
+        ORG_FILTER: ${{ inputs.org-filter }}
+        ORG_EXCLUDE: ${{ inputs.org-exclude }}
+        SEARCH_SLEEP: ${{ inputs.search-sleep }}
+        CONTENT_SLEEP: ${{ inputs.content-sleep }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-dockerfile-discovery.sh

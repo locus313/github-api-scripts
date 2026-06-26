@@ -1,0 +1,23 @@
+name: 'Migrate Internal Repos to Private'
+description: 'Convert all internal-visibility repositories in an organization to private'
+inputs:
+  github-token:
+    description: 'PAT with repo scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Migrate internal repos to private
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-migrate-internal-repos-to-private.sh

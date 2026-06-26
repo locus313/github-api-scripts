@@ -1,0 +1,41 @@
+name: 'Add Repository Collaborators by Pattern'
+description: 'Add individual collaborators to repositories whose names match a regex pattern'
+inputs:
+  github-token:
+    description: 'PAT with repo and admin:org scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  collaborators:
+    description: 'Comma-separated GitHub usernames to add as collaborators'
+    required: true
+  repo-name-regex:
+    description: 'ERE regex to match repository names'
+    required: true
+  permission:
+    description: 'Permission level: pull, triage, push, maintain, or admin'
+    required: false
+    default: 'push'
+  repo-exclude-regex:
+    description: 'ERE regex to exclude matching repository names'
+    required: false
+    default: ''
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Add collaborators to matching repositories
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        COLLABORATORS: ${{ inputs.collaborators }}
+        REPO_NAME_REGEX: ${{ inputs.repo-name-regex }}
+        PERMISSION: ${{ inputs.permission }}
+        REPO_EXCLUDE_REGEX: ${{ inputs.repo-exclude-regex }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-add-repo-collaborators-by-pattern.sh

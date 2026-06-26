@@ -2,44 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
-## [Unreleased]
-
-### Added
-- `github-install-enterprise-app` — programmatically installs an enterprise-owned automation GitHub App into an org using an installer GitHub App (JWT → installation token flow); supports `--dry-run` and optional org-scoped token verification. Adds `openssl` as a dependency
-- `github-copilot-report`: NDJSON usage-metrics endpoints, Entra ID enrichment via `az rest`, auto-detection of credits per seat with promo/standard table, `--no-entra` flag
-- README: GitHub Actions integration examples (workflow_dispatch, artifact upload, environment protection)
-- `.github/workflows/update-readme-sha.yml` — automatically updates the pinned commit SHA in README.md on every push to `main`
-
-### Changed
-- README: updated all `actions/checkout` references from `v4` to `v7.0.0` (pinned SHA `9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0`)
-- README: replaced `ref: main` in the GitHub Actions usage example with a pinned commit SHA, and updated the accompanying note to recommend SHA pinning
+<!-- Release Please inserts new entries above this line -->
 
 ---
 
-## [2026-06-21]
+## Pre-release history
 
-### Added
-- `github-copilot-report`: NDJSON usage-metrics endpoints, Entra ID enrichment via `az rest`, auto-detection of credits per seat with promo/standard table, `--no-entra` flag
-- README: GitHub Actions integration examples (workflow_dispatch, artifact upload, environment protection)
+### 2026-06-26
 
-### Changed
-- Validated all required environment variables across all scripts before any API calls
-- Improved error handling with descriptive exit messages throughout
+- feat: composite `action.yml` for all 16 automation scripts — each script is now usable as a `uses:` step in GitHub Actions workflows, enabling Dependabot to track and bump version pins automatically
+- feat: Release Please workflow for automated releases on push to `main`
+- feat: `github-install-enterprise-app` — programmatically installs an enterprise-owned GitHub App using a second installer app (JWT flow); supports `--dry-run`
+- feat: `github-copilot-report` — Copilot usage report with Entra ID enrichment, AI credit accounting, and new usage-metrics endpoints
+- fix: `github-archive-old-repos` — `REPORT_DIR` is now overridable via environment variable
+- chore: remove `update-readme-sha.yml` workflow (superseded by release tags)
+- docs: GitHub Actions section in README restructured to lead with composite action `uses:` syntax
 
----
+### 2026-06-21
 
-## [2026-06-20]
+- feat: `github-copilot-report` — NDJSON usage-metrics endpoints, Entra ID enrichment via `az rest`, credits per seat auto-detection
+- docs: GitHub Actions integration examples (workflow_dispatch, artifact upload, environment protection)
+- fix: validated all required environment variables across all scripts before any API calls
 
-### Added
-- `github-add-repo-permissions`: `REPO_NAME_FILTER` option to restrict permission grants to repos matching a name prefix
+### 2026-06-20
 
-### Changed
-- Enhanced validation for user-supplied inputs (slugs, regex patterns, date formats) across multiple scripts
-- Improved payload handling and JSON construction in enterprise scripts
+- feat: `github-add-repo-permissions` — `REPO_NAME_FILTER` option to restrict permission grants to repos matching a name prefix
+- fix: enhanced validation for user-supplied inputs (slugs, regex patterns, date formats) across multiple scripts
 
----
 
 ## [2026-06-19]
 

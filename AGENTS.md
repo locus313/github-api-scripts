@@ -52,6 +52,7 @@ github-api-scripts/
 | git | Used in `github-import-repo` for bare clone + mirror push |
 | shellcheck | Linting (pre-commit hook + CI) |
 | gitleaks | Secret scanning (pre-commit hook) |
+| Release Please | Automated releases and CHANGELOG generation (`.github/workflows/release.yml`) |
 
 ---
 
@@ -177,8 +178,9 @@ done
 3. **Copy the header template** from Script Anatomy above — fill in description, all env vars, requirements
 4. **Source the shared library** using `SCRIPT_DIR`
 5. **Validate all inputs** before any API calls
-6. **Add to README.md** — follow the existing format: use case, env var table, usage example, output format
-7. Place in the correct domain:
+6. **Create `action.yml`** in the same directory — expose every env var as an input (required inputs first, optional inputs with defaults); map CLI flags (`--dry-run`, `--type`, etc.) to boolean/string inputs and construct the `ARGS` array in the `run:` step. See existing `action.yml` files for the pattern.
+7. **Add to README.md** — follow the existing format: use case, env var table, usage example, output format; add a row to the Available Actions table in the "Using Scripts in GitHub Actions" section
+8. Place in the correct domain:
    - `org-admin/` — organization-level operations (repos, teams, members)
    - `enterprise/` — enterprise-level operations (licenses, org enumeration)
    - `reporting/` — read-only reports and audits
@@ -192,6 +194,24 @@ done
 - **Install:** `./install-hooks.sh` or `git config core.hooksPath .githooks`
 - **Bypass (emergency only):** `git commit --no-verify`
 - **CI:** shellcheck runs on all `.sh` files on every PR (`.github/workflows/ci.yml`)
+- **Releases:** automated by Release Please (`.github/workflows/release.yml`) — pushes to `main` trigger a release PR; merging it publishes the GitHub Release and tag
+
+## Commit Messages — Conventional Commits (required)
+
+All commits **must** follow [Conventional Commits](https://www.conventionalcommits.org/). `CHANGELOG.md` is fully managed by Release Please and **must never be edited manually**.
+
+| Prefix | Version bump | Visible in changelog |
+|--------|-------------|----------------------|
+| `feat:` | minor | ✅ Features |
+| `fix:` | patch | ✅ Bug Fixes |
+| `docs:` | patch | ✅ Documentation |
+| `perf:` | patch | ✅ Performance Improvements |
+| `revert:` | patch | ✅ Reverts |
+| `feat!:` / `BREAKING CHANGE:` | major | ✅ |
+| `chore:` | none | hidden |
+| `ci:` | none | hidden |
+| `refactor:` | none | hidden |
+| `test:` | none | hidden |
 
 ---
 
@@ -205,3 +225,4 @@ done
 - **Public repo filtering:** Do not rely on `?type=public` for enterprise-managed orgs — fetch all and filter in `jq`
 - **macOS vs Linux date:** `github-archive-old-repos.sh` handles both BSD `date -v` and GNU `date -d`
 - **`set -euo pipefail`:** Must be the first executable line after the header — never omit it
+- **Never edit `CHANGELOG.md` manually** — it is fully managed by Release Please via Conventional Commits

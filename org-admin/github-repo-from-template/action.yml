@@ -1,0 +1,48 @@
+name: 'Create Repository from Template'
+description: 'Create a private repository from a template with team permissions and a CI/CD collaborator'
+inputs:
+  github-token:
+    description: 'PAT with repo scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  repo-name:
+    description: 'Name of the new repository to create'
+    required: true
+  template-repo:
+    description: 'Template repository name'
+    required: true
+  cd-username:
+    description: 'CI/CD service account username to invite as a collaborator'
+    required: true
+  cd-github-token:
+    description: 'Token for the CI/CD service account (used to auto-accept the collaboration invitation)'
+    required: true
+  repo-admin:
+    description: 'Space-separated team slugs to grant admin access'
+    required: false
+    default: ''
+  repo-write:
+    description: 'Space-separated team slugs to grant write access'
+    required: false
+    default: ''
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Create repository from template
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        TEMPLATE_REPO: ${{ inputs.template-repo }}
+        CD_USERNAME: ${{ inputs.cd-username }}
+        CD_GITHUB_TOKEN: ${{ inputs.cd-github-token }}
+        REPO_ADMIN: ${{ inputs.repo-admin }}
+        REPO_WRITE: ${{ inputs.repo-write }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-repo-from-template.sh "${{ inputs.repo-name }}"

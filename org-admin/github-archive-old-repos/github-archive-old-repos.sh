@@ -36,7 +36,7 @@ ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 YEARS_THRESHOLD=${YEARS_THRESHOLD:-5}
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-REPORT_DIR="$(dirname "$0")/reports"
+REPORT_DIR="${REPORT_DIR:-$(dirname "$0")/reports}"
 REPORT_FILE="${REPORT_DIR}/old_repos_${TIMESTAMP}.csv"
 TEMP_FILE=$(mktemp)
 

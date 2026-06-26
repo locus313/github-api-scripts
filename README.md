@@ -891,19 +891,36 @@ print_status "Processing organization: ${ORG}"
 
 ## Using Scripts in GitHub Actions
 
-You can use these scripts in your own repository's workflows without copying or forking this repo. The pattern is to check out `locus313/github-api-scripts` as a step, then reference scripts from that path.
+Each script is published as a **composite action**, so you can reference it directly with a `uses:` step — no manual checkout required. Dependabot automatically tracks the pinned version and opens bump PRs when a new release is published.
 
 ```yaml
-- name: Checkout github-api-scripts
-  uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+- uses: locus313/github-api-scripts/org-admin/github-add-repo-permissions@v1.0.0
   with:
-    repository: locus313/github-api-scripts
-    ref: bcdc7dba96881a7e300746aac71a69de487b3ebd
-    path: github-api-scripts
+    github-token: ${{ secrets.ORG_ADMIN_TOKEN }}
+    org: my-org
+    repo-push: developers maintainers
 ```
 
-> [!NOTE]
-> For production workflows, pin `ref` to a specific commit SHA rather than a branch name to ensure reproducibility and prevent unexpected changes.
+### Available Actions
+
+| Action | Description |
+|--------|-------------|
+| `enterprise/github-add-enterprise-team-read-permissions` | Grant read permissions to an enterprise team across all orgs |
+| `enterprise/github-dockerfile-discovery` | Discover Dockerfiles and extract `FROM` instructions across all enterprise orgs |
+| `enterprise/github-get-consumed-licenses` | Report Enterprise consumed licence seat counts |
+| `enterprise/github-get-public-repos` | List all public repositories across all Enterprise orgs |
+| `enterprise/github-install-enterprise-app` | Install an enterprise-owned GitHub App into an org (JWT flow) |
+| `org-admin/github-add-repo-collaborators-by-pattern` | Add collaborators to repositories matching a name pattern |
+| `org-admin/github-add-repo-permissions` | Grant team permissions across all repositories in an org |
+| `org-admin/github-archive-old-repos` | Archive repositories not updated within a configurable age threshold |
+| `org-admin/github-auto-repo-creation` | Create private repositories with branch protection and CODEOWNERS |
+| `org-admin/github-close-archived-repo-security-alerts` | Dismiss all open security alerts on archived repositories |
+| `org-admin/github-enable-issues` | Enable Issues on all repositories where it is currently disabled |
+| `org-admin/github-get-repo-list` | Output a CSV list of all repositories in an org |
+| `org-admin/github-import-repo` | Mirror-clone a repository into a new private org repository |
+| `org-admin/github-migrate-internal-repos-to-private` | Convert all internal-visibility repositories to private |
+| `org-admin/github-repo-from-template` | Create a repository from a template with team permissions and a CI/CD collaborator |
+| `reporting/github-monthly-issues-report` | Generate an HTML report of issues created within a date range |
 
 ---
 
@@ -917,27 +934,18 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/CODEOWNERS'  # Trigger when ownership changes
+      - '.github/CODEOWNERS'
 
 jobs:
   update-permissions:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout github-api-scripts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: locus313/github-api-scripts/org-admin/github-add-repo-permissions@v1.0.0
         with:
-          repository: locus313/github-api-scripts
-          ref: main
-          path: github-api-scripts
-
-      - name: Grant team permissions to all repos
-        env:
-          GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
-          ORG: my-org
-          REPO_PUSH: developers maintainers
-          REPO_TRIAGE: support-team
-        run: |
-          ./github-api-scripts/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh
+          github-token: ${{ secrets.ORG_ADMIN_TOKEN }}
+          org: my-org
+          repo-push: developers maintainers
+          repo-triage: support-team
 ```
 
 ### Example 2: Archive Old Repositories Monthly
@@ -948,34 +956,26 @@ Schedule automated archival of stale repositories:
 name: Archive Old Repositories
 on:
   schedule:
-    # Run monthly on the 1st at 9 AM UTC
     - cron: '0 9 1 * *'
 
 jobs:
   archive-old:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout github-api-scripts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: locus313/github-api-scripts/org-admin/github-archive-old-repos@v1.0.0
         with:
-          repository: locus313/github-api-scripts
-          ref: main
-          path: github-api-scripts
-
-      - name: Archive repositories not updated in 5 years
-        env:
-          GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
-          ORG: my-org
-          YEARS_THRESHOLD: 5
-        run: |
-          ./github-api-scripts/org-admin/github-archive-old-repos/github-archive-old-repos.sh
+          github-token: ${{ secrets.ORG_ADMIN_TOKEN }}
+          org: my-org
+          years-threshold: '5'
+          auto-confirm: 'true'
+          report-dir: ./reports
 
       - name: Upload report as artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: archive-report
-          path: github-api-scripts/org-admin/github-archive-old-repos/reports/
+          path: reports/
           retention-days: 30
 ```
 
@@ -1001,29 +1001,16 @@ jobs:
   create-repo:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout github-api-scripts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: locus313/github-api-scripts/org-admin/github-repo-from-template@v1.0.0
         with:
-          repository: locus313/github-api-scripts
-          ref: main
-          path: github-api-scripts
-
-      - name: Create repository from template
-        env:
-          GITHUB_TOKEN: ${{ secrets.ORG_ADMIN_TOKEN }}
-          ORG: my-org
-          TEMPLATE_REPO: template-repo
-          REPO_ADMIN: ${{ github.event.inputs.repo-owner }}
-          REPO_WRITE: developers
-          CD_USERNAME: github-actions[bot]
-          CD_GITHUB_TOKEN: ${{ secrets.CD_TOKEN }}
-        run: |
-          ./github-api-scripts/org-admin/github-repo-from-template/github-repo-from-template.sh "${{ github.event.inputs.repo-name }}"
-
-      - name: Log success
-        if: success()
-        run: |
-          echo "✅ Repository ${{ github.event.inputs.repo-name }} created successfully!"
+          github-token: ${{ secrets.ORG_ADMIN_TOKEN }}
+          org: my-org
+          repo-name: ${{ github.event.inputs.repo-name }}
+          template-repo: template-repo
+          repo-admin: ${{ github.event.inputs.repo-owner }}
+          repo-write: developers
+          cd-username: github-actions[bot]
+          cd-github-token: ${{ secrets.CD_TOKEN }}
 ```
 
 ### Example 4: Weekly Dockerfile Discovery Report
@@ -1034,7 +1021,6 @@ Track base images across your enterprise and commit reports back to your own rep
 name: Discover Dockerfiles in Enterprise
 on:
   schedule:
-    # Run weekly on Monday at 12 PM UTC
     - cron: '0 12 * * 1'
 
 jobs:
@@ -1044,21 +1030,11 @@ jobs:
       - name: Checkout your repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Checkout github-api-scripts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: locus313/github-api-scripts/enterprise/github-dockerfile-discovery@v1.0.0
         with:
-          repository: locus313/github-api-scripts
-          ref: main
-          path: .github-api-scripts
-
-      - name: Discover Dockerfiles across enterprise
-        env:
-          GITHUB_TOKEN: ${{ secrets.ENTERPRISE_TOKEN }}
-          ENTERPRISE: my-enterprise
-          REPORT_DIR: ./reports
-        run: |
-          mkdir -p ./reports
-          ./.github-api-scripts/enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh
+          github-token: ${{ secrets.ENTERPRISE_TOKEN }}
+          enterprise: my-enterprise
+          report-dir: ./reports
 
       - name: Upload reports as artifacts
         if: always()
@@ -1081,7 +1057,20 @@ jobs:
 ```
 
 > [!NOTE]
-> Example 4 checks out your own repository at the workspace root (so `git push` commits to it), and places `github-api-scripts` in a hidden subdirectory (`.github-api-scripts`) to avoid conflicts with your repo's content.
+> Example 4 checks out your own repository first (so `git push` commits to it). The composite action writes reports to the `report-dir` path inside your workspace, so `git add reports/` picks them up correctly.
+
+### Keeping Actions Up to Date
+
+Because each script is a composite action, Dependabot tracks the pinned version tag and opens bump PRs automatically. Add the following to your `.github/dependabot.yml` (if not already present):
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+```
 
 ### GitHub Actions Best Practices
 
@@ -1094,9 +1083,11 @@ env:
 
 **Capture logs for audit trails:**
 ```yaml
-- name: Run script with logging
-  run: |
-    ./github-api-scripts/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh 2>&1 | tee -a execution.log
+- uses: locus313/github-api-scripts/org-admin/github-add-repo-permissions@v1.0.0
+  with:
+    github-token: ${{ secrets.ORG_ADMIN_TOKEN }}
+    org: my-org
+    repo-push: developers
 
 - name: Upload execution log
   if: always()
@@ -1155,13 +1146,15 @@ export GIT_URL_PREFIX="https://github.company.com"
 
 Contributions are welcome! Please follow these steps:
 
-1. **Fork** this repo and create a branch: `git checkout -b feat/my-new-script`
+1. **Fork** this repo and create a branch using Conventional Commits naming: `git checkout -b feat/my-new-script`
 2. **Install the pre-commit hook:** `./install-hooks.sh`
 3. **Add your script** following the conventions in [AGENTS.md](AGENTS.md):
    - Create `<domain>/github-<name>/github-<name>.sh`
    - Start with the `# ===` header and `set -euo pipefail`
    - Source `lib/github-common.sh` and validate all inputs
-4. **Update README.md** with the env var table and usage example for your script
+   - Create `action.yml` in the same directory (see existing actions for the pattern)
+4. **Update README.md** with the env var table, usage example, and a row in the Available Actions table
 5. **Run shellcheck:** `shellcheck --severity=warning --exclude=SC2034,SC1091 --shell=bash your-script.sh`
 6. **Test on a non-production org** before submitting
-7. **Open a PR** — the PR template will guide you through the checklist
+7. **Commit using [Conventional Commits](https://www.conventionalcommits.org/)** — `CHANGELOG.md` is auto-generated from commit messages; do not edit it manually
+8. **Open a PR** — the PR template will guide you through the checklist

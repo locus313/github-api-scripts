@@ -1,0 +1,43 @@
+name: 'Get Public Repositories'
+description: 'List all public repositories across all organizations in a GitHub Enterprise'
+inputs:
+  github-token:
+    description: 'PAT with read:org and repo scope'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  report-dir:
+    description: 'Output directory for the CSV report'
+    required: false
+    default: './reports'
+  orgs:
+    description: 'Comma-separated list of org names; skips enterprise org lookup when set'
+    required: false
+    default: ''
+  org-filter:
+    description: 'ERE regex to keep only matching org names'
+    required: false
+    default: ''
+  org-exclude:
+    description: 'ERE regex to exclude matching org names'
+    required: false
+    default: ''
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Get public repositories
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ENTERPRISE: ${{ inputs.enterprise }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        ORGS: ${{ inputs.orgs }}
+        ORG_FILTER: ${{ inputs.org-filter }}
+        ORG_EXCLUDE: ${{ inputs.org-exclude }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: ${{ github.action_path }}/github-get-public-repos.sh

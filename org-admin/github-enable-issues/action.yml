@@ -1,0 +1,30 @@
+name: 'Enable Issues'
+description: 'Enable the Issues feature on all repositories where it is currently disabled'
+inputs:
+  github-token:
+    description: 'PAT with repo or admin:org scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  dry-run:
+    description: 'List affected repositories without making changes'
+    required: false
+    default: 'false'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Enable Issues on repositories
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+      run: |
+        ARGS=()
+        [[ "${{ inputs.dry-run }}" == "true" ]] && ARGS+=(--dry-run)
+        "${{ github.action_path }}/github-enable-issues.sh" "${ARGS[@]}"

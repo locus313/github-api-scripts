@@ -1,0 +1,38 @@
+name: 'Import Repository'
+description: 'Mirror-clone a repository and push it to a new private repository in the organization'
+inputs:
+  github-token:
+    description: 'PAT with repo scope'
+    required: true
+  org:
+    description: 'GitHub organization name'
+    required: true
+  owner-username:
+    description: 'GitHub username to grant admin access on the new repository'
+    required: true
+  source-repo:
+    description: 'Name of the existing repository to clone'
+    required: true
+  destination-repo:
+    description: 'Name of the new repository to create'
+    required: true
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+  git-url-prefix:
+    description: 'GitHub base URL for git clone operations'
+    required: false
+    default: 'https://github.com'
+runs:
+  using: composite
+  steps:
+    - name: Import repository
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        ORG: ${{ inputs.org }}
+        OWNER_USERNAME: ${{ inputs.owner-username }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+        GIT_URL_PREFIX: ${{ inputs.git-url-prefix }}
+      run: ${{ github.action_path }}/github-import-repo.sh "${{ inputs.source-repo }}" "${{ inputs.destination-repo }}"
