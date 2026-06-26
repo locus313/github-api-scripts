@@ -11,6 +11,10 @@ inputs:
     description: 'Email domain for Entra ID lookup when GitHub carries no email address (e.g. example.com)'
     required: false
     default: ''
+  entra-tenant:
+    description: 'Override the Azure AD tenant ID for the Graph API lookup. Auto-resolved from upn-domain via OIDC discovery; only needed when that result is incorrect.'
+    required: false
+    default: ''
   credits:
     description: 'Override credits-per-seat value if your portal shows a different pool size'
     required: false
@@ -32,6 +36,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         GITHUB_ENTERPRISE: ${{ inputs.enterprise }}
         UPN_DOMAIN: ${{ inputs.upn-domain }}
+        ENTRA_TENANT: ${{ inputs.entra-tenant }}
         CREDITS_PER_SEAT_OVERRIDE: ${{ inputs.credits }}
       run: |
         ARGS=()
