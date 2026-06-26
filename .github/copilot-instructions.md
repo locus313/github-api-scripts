@@ -193,7 +193,7 @@ Generates an HTML report of issues created in a date range (`MONTH_START`/`MONTH
 
 ### `github-organize-stars`
 
-Uses `gh` CLI GraphQL (not `curl`) to fetch all starred repos. Categorizes by primary language, GitHub topics, and name keywords using a `RULES` array (pipe-delimited: `List Name|LANGUAGES|TOPICS|NAME_KEYWORDS`; first matching rule wins). Caches stars at `~/.cache/gh-star-organizer/stars.json`. Supports `--dry-run`, `-y` (skip confirm), `--show-repos`, and `--no-cache`. Adds repos to Lists in batches of 25.
+Uses `gh` CLI GraphQL (not `curl`) to fetch all starred repos. Accepts `GITHUB_TOKEN` env var or an active `gh` auth session for authentication. Categorizes by primary language, GitHub topics, and name keywords using a `RULES` array (pipe-delimited: `List Name|LANGUAGES|TOPICS|NAME_KEYWORDS`; first matching rule wins). Caches stars at `~/.cache/gh-star-organizer/stars.json`. Supports `--dry-run`, `-y` (skip confirm), `--show-repos`, and `--no-cache`. Adds repos to Lists in batches of 25.
 
 ### `github-repo-from-template`
 
@@ -201,11 +201,11 @@ Creates a private repo from `TEMPLATE_REPO` (including all branches), assigns ad
 
 ### `github-repo-permissions-report`
 
-Uses `gh` CLI (not `curl`/`GITHUB_TOKEN`) for all API calls. Accepts `-r OWNER/REPO`, `-b BRANCH`, and `-o FILE` flags. Outputs a CSV with two record types: `permission` (all users/teams) and `bypass_actor` (explicit PR approval bypass entries). Reports both branch protection rules and repository rulesets. Requires `gh auth login` before running — no `GITHUB_TOKEN` env var needed.
+Uses `curl` for all API calls. Accepts `GITHUB_TOKEN` env var or an active `gh` auth session (token auto-resolved at lib source time) for authentication. Accepts `-r OWNER/REPO`, `-b BRANCH`, and `-o FILE` flags. Outputs a CSV with two record types: `permission` (all users/teams) and `bypass_actor` (explicit PR approval bypass entries). Reports both branch protection rules and repository rulesets.
 
 ### `github-copilot-report`
 
-Uses `gh` CLI (not `curl`/`GITHUB_TOKEN`) for all GitHub API calls; requires `gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"`. Also requires `az` to be **installed** (not just logged in) — the script calls `require_command az` unconditionally before checking `--no-entra`. When `az` is logged in, enriches each user with Entra ID department and job title via `az rest`.
+Uses `curl` for all GitHub API calls. Accepts `GITHUB_TOKEN` env var (PAT with `read:enterprise` and `manage_billing:enterprise` scopes) or an active `gh` auth session (token auto-resolved at lib source time) for authentication. Also requires `az` to be **installed** when Entra ID enrichment is needed — `az` is checked at runtime only if `--no-entra` is not set and `az` is not already skipped. If `az` is not installed or not logged in, Entra lookup is silently skipped. When `az` is logged in, enriches each user with Entra ID department and job title via `az rest`.
 
 Auto-detects credits per seat from a promo/standard table keyed on plan type and today's date (promo period Jun 1 – Sep 1, 2026); override with `--credits N` or `$CREDITS_PER_SEAT_OVERRIDE`. Credits are pooled enterprise-wide, not per-user buckets. Code completions are not billed in AI credits.
 
