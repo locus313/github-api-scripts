@@ -516,11 +516,12 @@ cd reporting/github-monthly-issues-report
 Exports repository user/team permissions to CSV and identifies who can bypass pull request approval requirements, from both branch protection rules and repository rulesets.
 
 **Prerequisites:**
-- **[gh](https://cli.github.com)** — GitHub CLI (authenticated via `gh auth login`)
+- **[curl](https://curl.se)** — HTTP client
 - **[jq](https://stedolan.github.io/jq)** — JSON processor
 
 **Usage:**
 ```bash
+export GITHUB_TOKEN=ghp_yourtoken   # or resolved automatically from an active gh auth session
 cd reporting/github-repo-permissions-report
 ./github-repo-permissions-report.sh -r OWNER/REPO
 ./github-repo-permissions-report.sh -r OWNER/REPO -b main -o report.csv
@@ -540,9 +541,6 @@ cd reporting/github-repo-permissions-report
 - Identifies every principal that can bypass PR approval requirements
 - Produces a CSV with two record types: `permission` (all users/teams) and `bypass_actor` (explicit bypass entries)
 
-> [!NOTE]
-> Uses the `gh` CLI for all API calls. Authenticate via `gh auth login` before running.
-
 ---
 
 ### Copilot Enterprise Report
@@ -552,13 +550,17 @@ cd reporting/github-repo-permissions-report
 Generates a GitHub Copilot Enterprise licence and usage report. Shows every licensed user, their plan type, pool credit contribution, and actual AI credit consumption for the current billing month. Optionally enriches data with Entra ID department information.
 
 **Prerequisites:**
-- **[gh](https://cli.github.com)** — GitHub CLI authenticated with `read:enterprise` and `manage_billing:enterprise` scopes
-- **[az](https://learn.microsoft.com/en-us/cli/azure/)** — Azure CLI (must be installed; login required only for Entra ID department enrichment — pass `--no-entra` to skip the login requirement)
+- **[curl](https://curl.se)** — HTTP client
+- **[az](https://learn.microsoft.com/en-us/cli/azure/)** — Azure CLI (optional; required only for Entra ID department enrichment — pass `--no-entra` or omit az to skip)
 - **[jq](https://stedolan.github.io/jq)** — JSON processor
 
 **Required variables:**
 ```bash
 export GITHUB_ENTERPRISE="your-enterprise-slug"
+
+# GitHub auth — use one of:
+export GITHUB_TOKEN=ghp_yourtoken    # PAT with read:enterprise and manage_billing:enterprise scopes
+# OR: token is resolved automatically from an active gh auth session with the required scopes
 
 # Optional: Entra ID UPN domain for users without a public GitHub email
 export UPN_DOMAIN="example.com"        # e.g. 'john_example' → john@example.com
@@ -571,9 +573,7 @@ export CREDITS_PER_SEAT_OVERRIDE="1900"
 ```bash
 cd reporting/github-copilot-report
 
-# Authenticate first
-gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"
-az login   # required to be installed; login needed only for department enrichment
+az login   # optional; needed only for Entra ID department enrichment
 
 ./github-copilot-report.sh -e YOUR-ENTERPRISE
 ./github-copilot-report.sh -e YOUR-ENTERPRISE -d example.com
@@ -599,10 +599,10 @@ az login   # required to be installed; login needed only for department enrichme
 - Outputs a CSV and a formatted console summary with department breakdown and model usage tables
 
 > [!IMPORTANT]
-> Requires an enterprise owner or billing manager token. Run `gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"` before executing.
+> Requires a PAT with `read:enterprise` and `manage_billing:enterprise` scopes — the built-in `GITHUB_TOKEN` cannot grant enterprise-level access. Set `GITHUB_TOKEN` before executing (or have an active `gh` auth session with those scopes so the lib can auto-resolve the token).
 
 > [!NOTE]
-> Uses the `gh` CLI and (optionally) the `az` CLI. The Entra ID enrichment is skipped automatically if `az` is not logged in, or can be disabled with `--no-entra`.
+> The Entra ID enrichment is skipped automatically if `az` is not logged in, or can be disabled with `--no-entra`.
 
 ---
 
@@ -802,7 +802,7 @@ cd enterprise/github-get-public-repos
 Fetches all your starred repositories and organizes them into GitHub Lists using customizable categorization rules.
 
 **Prerequisites:**
-- **[gh](https://cli.github.com)** - GitHub CLI (authenticated via `gh auth login`)
+- **[gh](https://cli.github.com)** - GitHub CLI (authenticated via `GITHUB_TOKEN` env var or `gh auth login`)
 - **[jq](https://stedolan.github.io/jq)** - Command-line JSON processor
 
 **Usage:**
@@ -835,7 +835,7 @@ Edit the `RULES` array in the script. Each rule is a `|`-delimited string:
 The **first matching rule wins**, so order matters. Place more specific rules (e.g., AI) before general ones (e.g., Security).
 
 > [!NOTE]
-> This script uses the `gh` CLI for all API calls (GraphQL) rather than `curl`. Ensure you are authenticated via `gh auth login` before running.
+> This script uses the `gh` CLI for all API calls (GraphQL) rather than `curl`. Authenticate by setting `GITHUB_TOKEN` or by running `gh auth login`.
 
 ## Shared Library: `lib/github-common.sh`
 
@@ -921,6 +921,8 @@ Each script is published as a **composite action**, so you can reference it dire
 | `org-admin/github-migrate-internal-repos-to-private` | Convert all internal-visibility repositories to private |
 | `org-admin/github-repo-from-template` | Create a repository from a template with team permissions and a CI/CD collaborator |
 | `reporting/github-monthly-issues-report` | Generate an HTML report of issues created within a date range |
+| `reporting/github-repo-permissions-report` | Export repository collaborator/team permissions and branch-approval bypass actors to CSV |
+| `reporting/github-copilot-report` | GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID department data |
 
 ---
 

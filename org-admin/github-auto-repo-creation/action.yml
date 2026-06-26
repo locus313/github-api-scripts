@@ -3,7 +3,7 @@ description: 'Create private repositories with branch protection, CODEOWNERS, an
 inputs:
   github-token:
     description: 'PAT with repo and admin:org scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -27,7 +27,7 @@ runs:
     - name: Create repositories
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         REPO_NAMES: ${{ inputs.repo-names }}
         REPO_OWNERS: ${{ inputs.repo-owners }}

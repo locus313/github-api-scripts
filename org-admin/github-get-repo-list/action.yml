@@ -3,7 +3,7 @@ description: 'Output a CSV list of all repositories in a GitHub organization to 
 inputs:
   github-token:
     description: 'PAT with read:org and repo scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -17,7 +17,7 @@ runs:
     - name: Get repository list
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         API_URL_PREFIX: ${{ inputs.api-url-prefix }}
       run: ${{ github.action_path }}/github-get-repo-list.sh

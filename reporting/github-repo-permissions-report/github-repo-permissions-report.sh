@@ -10,8 +10,13 @@
 #   - permission    : collaborators/teams and whether they can bypass approvals
 #   - bypass_actor  : explicit bypass actors from branch protection and rulesets
 #
+# Environment variables:
+#   GITHUB_TOKEN    Required. PAT with repo and read:org scope
+#                   (or provided automatically from an active gh auth session)
+#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#
 # Requirements:
-#   - gh CLI authenticated with access to the target repository
+#   - curl
 #   - jq
 # =============================================================================
 
@@ -21,7 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
-API_VERSION="2022-11-28"
+API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 REPO=""
 BRANCH=""
 OUTPUT_CSV=""
@@ -75,10 +80,10 @@ done
 
 [[ -z "$REPO" ]] && err "Repository is required. Use -r OWNER/REPO"
 
-require_command gh
 require_command jq
 
-gh auth status >/dev/null 2>&1 || err "gh is not authenticated. Run: gh auth login"
+require_env_var GITHUB_TOKEN
+validate_github_token
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -90,15 +95,10 @@ BP_JSON="${TMP_DIR}/branch_protection.json"
 RULESETS_JSON="${TMP_DIR}/rulesets.json"
 BYPASS_JSON="${TMP_DIR}/bypass.json"
 
-gh_api() {
-  gh api \
-    -H "Accept: application/vnd.github+json" \
-    -H "X-GitHub-Api-Version: ${API_VERSION}" \
-    "$@"
-}
-
 info "Fetching repository metadata for ${REPO}..."
-gh_api "/repos/${REPO}" > "$REPO_JSON"
+_repo_resp=$(gh_api "/repos/${REPO}")
+[[ "${_repo_resp}" == "__404__" ]] && err "Repository ${REPO} not found or not accessible"
+echo "${_repo_resp}" > "$REPO_JSON"
 DEFAULT_BRANCH="$(jq -r '.default_branch // empty' "$REPO_JSON")"
 [[ -z "$DEFAULT_BRANCH" ]] && err "Unable to determine default branch for ${REPO}"
 
@@ -111,30 +111,24 @@ if [[ -z "$OUTPUT_CSV" ]]; then
 fi
 
 info "Fetching collaborators..."
-gh_api --paginate \
-  "/repos/${REPO}/collaborators?affiliation=all&per_page=100" \
-  --jq '.[]' | jq -s '.' > "$COLLAB_JSON"
+gh_api_paginate "/repos/${REPO}/collaborators?affiliation=all&per_page=100" '.[]' \
+  | jq -s '.' > "$COLLAB_JSON"
 
 info "Fetching teams with repository access..."
-gh_api --paginate \
-  "/repos/${REPO}/teams?per_page=100" \
-  --jq '.[]' | jq -s '.' > "$TEAMS_JSON"
+gh_api_paginate "/repos/${REPO}/teams?per_page=100" '.[]' \
+  | jq -s '.' > "$TEAMS_JSON"
 
 info "Fetching branch protection for ${BRANCH} (if configured)..."
-if gh_api "/repos/${REPO}/branches/${BRANCH}/protection" > "$BP_JSON" 2>/dev/null; then
-  :
-else
+_bp_resp=$(gh_api "/repos/${REPO}/branches/${BRANCH}/protection")
+if [[ "${_bp_resp}" == "__404__" || "${_bp_resp}" == "__422__" ]]; then
   echo '{}' > "$BP_JSON"
+else
+  echo "${_bp_resp}" > "$BP_JSON"
 fi
 
 info "Fetching repository rulesets (if configured)..."
-if gh_api --paginate \
-  "/repos/${REPO}/rulesets?includes_parents=true&per_page=100" \
-  --jq '.[]' | jq -s '.' > "$RULESETS_JSON" 2>/dev/null; then
-  :
-else
-  echo '[]' > "$RULESETS_JSON"
-fi
+gh_api_paginate "/repos/${REPO}/rulesets?includes_parents=true&per_page=100" '.[]' \
+  | jq -s '. // []' > "$RULESETS_JSON"
 
 info "Building bypass actor list (branch protection + applicable rulesets)..."
 jq -n \

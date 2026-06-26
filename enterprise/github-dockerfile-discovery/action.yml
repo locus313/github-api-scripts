@@ -3,7 +3,7 @@ description: 'Discover Dockerfiles and extract FROM instructions across all ente
 inputs:
   github-token:
     description: 'PAT with read:org and repo scope'
-    required: true
+    required: false
   enterprise:
     description: 'GitHub Enterprise slug'
     required: true
@@ -41,7 +41,7 @@ runs:
     - name: Discover Dockerfiles across enterprise
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ENTERPRISE: ${{ inputs.enterprise }}
         REPORT_DIR: ${{ inputs.report-dir }}
         ORGS: ${{ inputs.orgs }}

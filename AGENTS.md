@@ -47,7 +47,7 @@ github-api-scripts/
 | bash 4+ | All scripts |
 | curl | GitHub REST and GraphQL API calls |
 | jq | JSON parsing and transformation |
-| gh CLI | Used in `github-organize-stars` and `github-repo-permissions-report` |
+| gh CLI | Used in `github-organize-stars` |
 | base64 | Used in `github-auto-repo-creation` for CODEOWNERS encoding |
 | git | Used in `github-import-repo` for bare clone + mirror push |
 | shellcheck | Linting (pre-commit hook + CI) |
@@ -142,9 +142,11 @@ Always use `SCRIPT_DIR` to build the path to `lib/github-common.sh`. The library
 | `print_status` / `print_success` / `print_warning` / `print_error` | Colored output |
 | `require_env_var <VAR>` | Exit with message if variable unset/empty |
 | `require_command <cmd>` | Exit if binary not in PATH |
+| `configure_gh_auth [scope_hint]` | Bridge GITHUB_TOKEN→GH_TOKEN or verify gh auth session |
 | `validate_github_token [bearer]` | Verify GITHUB_TOKEN via /user endpoint |
 | `validate_slug <value> <label>` | Reject values with non-alphanumeric/hyphen/underscore chars |
 | `gh_api <path> [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling |
+| `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items |
 | `get_enterprise_orgs` | Three-tier enterprise org resolver (REST → GraphQL → /user/orgs) |
 | `get_repo_page_count <url>` | Returns total pages for a paginated endpoint |
 
@@ -154,6 +156,8 @@ Always use `SCRIPT_DIR` to build the path to `lib/github-common.sh`. The library
 2. `validate_github_token` (or `validate_token` for secondary tokens)
 3. Validate additional inputs with `validate_slug` where needed
 4. Proceed with main logic
+
+> **Note on token auto-resolution:** Sourcing `lib/github-common.sh` automatically populates `GITHUB_TOKEN` from an active `gh` auth session if the variable is unset. This means `require_env_var GITHUB_TOKEN` may pass even when no explicit token was provided by the caller — the token was silently resolved from `gh auth token`. Script headers should document `GITHUB_TOKEN` as "Required (or provided by an active gh auth session)". Scripts that use the `gh` CLI instead of `curl` should call `configure_gh_auth` instead of step 2 above.
 
 ### Pagination (REST)
 

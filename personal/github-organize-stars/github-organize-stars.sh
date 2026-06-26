@@ -14,15 +14,21 @@
 #   ./github-organize-stars.sh --no-cache   # Force re-fetch stars from GitHub
 #
 # Environment variables:
-#   CACHE_FILE  Optional. Path to the stars cache file
+#   GITHUB_TOKEN  Optional. PAT or token used to authenticate gh CLI.
+#                 When set, takes precedence over any active gh auth session.
+#   CACHE_FILE    Optional. Path to the stars cache file
 #               (default: ~/.cache/gh-star-organizer/stars.json)
 #
 # Requirements:
-#   - gh (GitHub CLI, authenticated)
+#   - gh (GitHub CLI, authenticated via GITHUB_TOKEN or gh auth login)
 #   - jq
 # =============================================================================
 
 set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../lib/github-common.sh
+source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 # ---- Dependency check -------------------------------------------------------
 for cmd in gh jq; do
@@ -54,6 +60,8 @@ for arg in "$@"; do
     *) echo "Unknown argument: $arg  (use --help)" >&2; exit 1 ;;
   esac
 done
+
+configure_gh_auth "gh auth login"
 
 # =============================================================================
 # CATEGORY RULES

@@ -1,0 +1,40 @@
+name: 'Copilot Report'
+description: 'GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID department data'
+inputs:
+  github-token:
+    description: 'PAT with read:enterprise and manage_billing:enterprise scopes. Cannot be the built-in GITHUB_TOKEN.'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  upn-domain:
+    description: 'Email domain for Entra ID lookup when GitHub carries no email address (e.g. example.com)'
+    required: false
+    default: ''
+  credits:
+    description: 'Override credits-per-seat value if your portal shows a different pool size'
+    required: false
+    default: ''
+  output:
+    description: 'Output CSV file path (default: copilot-report-YYYYMMDD.csv)'
+    required: false
+    default: ''
+  no-entra:
+    description: 'Skip Entra ID department lookup'
+    required: false
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Generate Copilot report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_ENTERPRISE: ${{ inputs.enterprise }}
+        UPN_DOMAIN: ${{ inputs.upn-domain }}
+        CREDITS_PER_SEAT_OVERRIDE: ${{ inputs.credits }}
+      run: |
+        ARGS=()
+        [[ -n "${{ inputs.output }}" ]]   && ARGS+=(--output "${{ inputs.output }}")
+        [[ "${{ inputs.no-entra }}" == "true" ]] && ARGS+=(--no-entra)
+        "${{ github.action_path }}/github-copilot-report.sh" "${ARGS[@]}"
