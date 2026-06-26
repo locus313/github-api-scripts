@@ -183,7 +183,7 @@ gh_api() {
       -H "X-GitHub-Api-Version: 2022-11-28" \
       "$@" "${url}")
     http_code=$(echo "${body}" | tail -1)
-    body=$(echo "${body}" | head -n -1)
+    body=$(echo "${body}" | sed '$d')
 
     case "${http_code}" in
       200) echo "${body}"; return 0 ;;
@@ -327,7 +327,7 @@ _graphql_enterprise_orgs() {
       -d "${query}")
 
     http_code=$(echo "${resp}" | tail -1)
-    body=$(echo "${resp}" | head -n -1)
+    body=$(echo "${resp}" | sed '$d')
 
     if [[ "${http_code}" != "200" ]]; then
       return 1
@@ -407,4 +407,12 @@ if [[ -z "${GITHUB_TOKEN:-}" ]] && command -v gh &>/dev/null; then
     export GITHUB_TOKEN
   fi
   unset _gh_resolved_token
+fi
+# Keep GH_TOKEN in sync with GITHUB_TOKEN so that any script can call
+# 'gh api' directly (e.g. for endpoints that require scopes beyond what
+# a raw token carries, or simply to reuse the gh CLI auth session).
+# Only set when gh CLI is present and GH_TOKEN is not already provided.
+if [[ -n "${GITHUB_TOKEN:-}" ]] && command -v gh &>/dev/null && [[ -z "${GH_TOKEN:-}" ]]; then
+  GH_TOKEN="$GITHUB_TOKEN"
+  export GH_TOKEN
 fi
