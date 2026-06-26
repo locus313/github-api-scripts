@@ -101,7 +101,7 @@ For enterprise-level org iteration (GraphQL), use cursor-based pagination — se
 Rate limiting delays are calibrated per operation type:
 - **Repo-level operations** (permission grants, archival): `sleep 5` between each repository.
 - **Code search** (`github-dockerfile-discovery`): configurable via `SEARCH_SLEEP` (default 2 s) and `CONTENT_SLEEP` (default 1 s).
-- **gh_api helper** (lib): auto-retries up to 5 times on HTTP 403/429, sleeping 60 s before each retry.
+- **gh_api helper** (lib): auto-retries up to 5 times on HTTP 403/429, sleeping 60 s before each retry. Returns the literal string `__404__` or `__422__` (exit 0) for those HTTP statuses instead of failing — every caller must check for these sentinels before passing the result to `jq`. `gh_api_paginate` returns silently with empty output on 404/422.
 
 ### Authentication Headers
 
@@ -161,7 +161,7 @@ Dismisses open Dependabot, code-scanning, and secret-scanning alerts on all arch
 
 ### `github-dockerfile-discovery`
 
-Uses GitHub code-search API to find Dockerfiles across all enterprise orgs, then fetches and parses each file to extract `FROM` instructions (including multi-stage builds). Produces three timestamped reports in `REPORT_DIR`: a detail CSV, a summary CSV, and a plain-text summary. Supports `ORGS` override, `ORG_FILTER`/`ORG_EXCLUDE` regex filters (validated as syntactically correct ERE before use), and configurable sleep intervals (`SEARCH_SLEEP`, `CONTENT_SLEEP`).
+Uses GitHub code-search API to find Dockerfiles across all enterprise orgs, then fetches and parses each file to extract `FROM` instructions (including multi-stage builds). Produces three timestamped reports in `REPORT_DIR`: a detail CSV, a summary CSV, and a plain-text summary. Supports `ORGS` override, `ORG_FILTER`/`ORG_EXCLUDE` regex filters (validated as syntactically correct ERE before use), and configurable sleep intervals (`SEARCH_SLEEP`, `CONTENT_SLEEP`). Both `gh_api` call sites handle sentinels: `__422__` or `__404__` on the code-search endpoint skips that org with a warning; `__404__` or `__422__` on the file-contents endpoint skips that individual file.
 
 ### `github-enable-issues`
 
@@ -270,6 +270,7 @@ When you change one of these files, you must also update the files in the "Also 
 |------------------|-------------|
 | `lib/github-common.sh` — any public function signature or behaviour | All 18 scripts that source it; verify each caller still passes the right arguments. Check with: `grep -r "github-common" . --include="*.sh"` |
 | `lib/github-common.sh` — add a new helper function | `AGENTS.md` shared library table; `README.md` if the function affects usage |
+| `gh_api_paginate` signature or pagination behaviour | `github-repo-permissions-report.sh` (3 call sites), `github-copilot-report.sh` (`fetch_seats`) — both pipe output through `jq -s '.'` and depend on the `jq_filter`/`api_version` parameter order |
 | Any script's required env vars | That script's `# ===` header comment; the corresponding README.md section's env var table; that script's `action.yml` inputs (add/remove required inputs to match) |
 | Any script's optional env vars or defaults | Same as above; update the `action.yml` optional inputs and their defaults |
 | Any script's `--dry-run` or CLI flag behaviour | README.md usage example for that script; that script's `action.yml` inputs and `run:` step flag construction |

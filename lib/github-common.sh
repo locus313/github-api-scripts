@@ -12,22 +12,26 @@
 #
 # Provides:
 #   print_status / print_success / print_warning / print_error
-#   require_env_var <VAR> [description]  — exit if variable is unset/empty
-#   require_command <cmd>                — exit if command not found
-#   configure_gh_auth [scope_hint]       — bridge GITHUB_TOKEN→GH_TOKEN or verify gh session
-#   validate_github_token [bearer]       — verify token via /user endpoint
+#   require_env_var <VAR> [description]       — exit if variable is unset/empty
+#   require_command <cmd>                     — exit if command not found
+#   configure_gh_auth [scope_hint]            — bridge GITHUB_TOKEN→GH_TOKEN or verify gh session
+#   validate_github_token [bearer]            — verify GITHUB_TOKEN via /user endpoint
+#   validate_token <VAR_NAME>                 — verify a secondary token variable
+#   validate_slug <value> [label]             — exit if value contains unsafe chars
+#   gh_api <path|url> [curl args...]          — Bearer-auth REST helper with retry;
+#                                               returns "__404__"/"__422__" (exit 0) for those codes
+#   gh_api_paginate <path> [filter] [version] — paginated REST, follows Link headers;
+#                                               silently returns empty output on 404/422
+#   get_repo_page_count <url>                 — total page count for a paginated REST endpoint
+#   _paginate_orgs_endpoint <filter> <url_tpl> — page through an org list (internal)
+#   _graphql_enterprise_orgs                  — GraphQL cursor-based enterprise orgs (internal)
+#   get_enterprise_orgs                       — three-tier enterprise org resolver
 #
 # Token auto-resolution (at source time):
 #   If GITHUB_TOKEN is unset and gh CLI is available, the token is automatically
 #   resolved from the active gh auth session so curl-based scripts work with
-#   either a GITHUB_TOKEN env var or a gh CLI session.
-#   validate_token <VAR_NAME>            — verify a secondary token variable
-#   validate_slug <value> [label]        — exit if value contains unsafe chars
-#   gh_api <path|url> [curl args...]     — Bearer-auth REST helper with retry
-#   gh_api_paginate <path> [filter] [version] — paginated REST, follows Link headers
-#   _paginate_orgs_endpoint <filter> <url_tpl>  — page through an org list
-#   _graphql_enterprise_orgs             — GraphQL cursor-based enterprise orgs
-#   get_enterprise_orgs                  — three-tier enterprise org resolver
+#   either a GITHUB_TOKEN env var or a gh CLI session. GH_TOKEN is also kept
+#   in sync with GITHUB_TOKEN so gh CLI calls use the same credential.
 # =============================================================================
 
 ###

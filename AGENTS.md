@@ -145,8 +145,8 @@ Always use `SCRIPT_DIR` to build the path to `lib/github-common.sh`. The library
 | `configure_gh_auth [scope_hint]` | Bridge GITHUB_TOKEN→GH_TOKEN or verify gh auth session |
 | `validate_github_token [bearer]` | Verify GITHUB_TOKEN via /user endpoint |
 | `validate_slug <value> <label>` | Reject values with non-alphanumeric/hyphen/underscore chars |
-| `gh_api <path> [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling |
-| `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items |
+| `gh_api <path> [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling; returns literal `__404__` or `__422__` for those HTTP statuses — callers must check for these sentinels |
+| `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items; returns silently with empty output on 404/422 |
 | `get_enterprise_orgs` | Three-tier enterprise org resolver (REST → GraphQL → /user/orgs) |
 | `get_repo_page_count <url>` | Returns total pages for a paginated endpoint |
 
@@ -172,6 +172,7 @@ done
 - Repo-level operations (permission grants, archival): `sleep 5` between each repo
 - Code search: configurable `SEARCH_SLEEP` (default 2s) and `CONTENT_SLEEP` (default 1s)
 - `gh_api` auto-retries on HTTP 403/429 with 60s sleep
+- `gh_api` returns the literal string `__404__` or `__422__` (exit 0) for those HTTP statuses — callers must check for these sentinels before passing output to `jq`
 
 ---
 
