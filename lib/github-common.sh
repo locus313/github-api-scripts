@@ -14,10 +14,17 @@
 #   print_status / print_success / print_warning / print_error
 #   require_env_var <VAR> [description]  — exit if variable is unset/empty
 #   require_command <cmd>                — exit if command not found
+#   configure_gh_auth [scope_hint]       — bridge GITHUB_TOKEN→GH_TOKEN or verify gh session
 #   validate_github_token [bearer]       — verify token via /user endpoint
+#
+# Token auto-resolution (at source time):
+#   If GITHUB_TOKEN is unset and gh CLI is available, the token is automatically
+#   resolved from the active gh auth session so curl-based scripts work with
+#   either a GITHUB_TOKEN env var or a gh CLI session.
 #   validate_token <VAR_NAME>            — verify a secondary token variable
 #   validate_slug <value> [label]        — exit if value contains unsafe chars
 #   gh_api <path|url> [curl args...]     — Bearer-auth REST helper with retry
+#   gh_api_paginate <path> [filter] [version] — paginated REST, follows Link headers
 #   _paginate_orgs_endpoint <filter> <url_tpl>  — page through an org list
 #   _graphql_enterprise_orgs             — GraphQL cursor-based enterprise orgs
 #   get_enterprise_orgs                  — three-tier enterprise org resolver
@@ -64,6 +71,29 @@ require_command() {
   local hint="${2:-${cmd}}"
   if ! command -v "${cmd}" > /dev/null 2>&1; then
     print_error "${cmd} is not installed. Please install ${hint} and try again"
+    exit 1
+  fi
+}
+
+###
+## configure_gh_auth [scope_hint]
+## Bridges GITHUB_TOKEN into the gh CLI so scripts can accept either a token
+## or an active gh auth session interchangeably.
+##
+## When GITHUB_TOKEN is set: exports it as GH_TOKEN (gh CLI reads this env var).
+## When GITHUB_TOKEN is not set: verifies gh auth status and exits with an error
+## if no session is active. scope_hint is appended to the error message.
+##
+## Usage:
+##   configure_gh_auth "gh auth login"
+##   configure_gh_auth 'gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"'
+###
+configure_gh_auth() {
+  local scope_hint="${1:-gh auth login}"
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    export GH_TOKEN="$GITHUB_TOKEN"
+  elif ! gh auth status >/dev/null 2>&1; then
+    print_error "Not authenticated. Set GITHUB_TOKEN or run: ${scope_hint}"
     exit 1
   fi
 }
@@ -172,6 +202,73 @@ gh_api() {
 
   print_error "Failed to reach ${url} after 5 attempts"
   return 1
+}
+
+###
+## gh_api_paginate <path_or_url> [jq_filter] [api_version]
+## Paginated GitHub REST API helper using Link-header following.
+## Outputs each page's items (filtered by jq_filter) to stdout, one item per
+## line. Pipe the output to: jq -s '.'       to get a JSON array of all items.
+##                           jq -s '. // []' to get [] when the endpoint 404s.
+## jq_filter defaults to .[] (one item per array element).
+## api_version defaults to 2022-11-28.
+## Returns 0 silently on 404/422 (empty output); returns 1 after 5 failed attempts.
+###
+gh_api_paginate() {
+  local url="$1"
+  local jq_filter="${2:-.[]}"
+  local api_version="${3:-2022-11-28}"
+  [[ "${url}" == http* ]] || url="${API_URL_PREFIX}${url}"
+
+  local _tmp_headers _tmp_body _http_code _attempt _next_url
+  _tmp_headers=$(mktemp)
+  _tmp_body=$(mktemp)
+
+  while [[ -n "${url}" ]]; do
+    _http_code=""
+    for _attempt in 1 2 3 4 5; do
+      _http_code=$(curl -s \
+        -D "${_tmp_headers}" \
+        -o "${_tmp_body}" \
+        -w "%{http_code}" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: ${api_version}" \
+        "${url}")
+      case "${_http_code}" in
+        200) break ;;
+        404|422)
+          rm -f "${_tmp_headers}" "${_tmp_body}"
+          return 0
+          ;;
+        403|429)
+          print_warning "Rate limited (HTTP ${_http_code}). Sleeping 60s before retry ${_attempt}/5..."
+          sleep 60
+          ;;
+        *)
+          print_warning "HTTP ${_http_code} for ${url} (attempt ${_attempt}/5)"
+          sleep 5
+          ;;
+      esac
+    done
+
+    if [[ "${_http_code}" != "200" ]]; then
+      rm -f "${_tmp_headers}" "${_tmp_body}"
+      print_error "Failed to fetch ${url} after 5 attempts"
+      return 1
+    fi
+
+    jq -rc "${jq_filter}" "${_tmp_body}" 2>/dev/null || true
+
+    # Follow Link: <next-url>; rel="next" to the next page
+    _next_url=$(grep -i "^link:" "${_tmp_headers}" \
+      | grep -o '<[^>]*>; rel="next"' \
+      | sed 's/<\([^>]*\)>.*/\1/' \
+      || true)
+    url="${_next_url}"
+  done
+
+  rm -f "${_tmp_headers}" "${_tmp_body}"
 }
 
 ###
@@ -293,3 +390,21 @@ get_enterprise_orgs() {
     '.[].login' \
     "/user/orgs?per_page=100&page=PAGE"
 }
+
+###
+## Token auto-resolution (runs once at source time)
+## If GITHUB_TOKEN is not set, attempt to derive it from an active gh CLI
+## auth session. This allows scripts that use GITHUB_TOKEN with curl to work
+## with gh CLI auth as an alternative to an explicit token.
+## Scripts should still call require_env_var GITHUB_TOKEN or
+## validate_github_token to fail fast with a clear message if neither source
+## provides a token.
+###
+if [[ -z "${GITHUB_TOKEN:-}" ]] && command -v gh &>/dev/null; then
+  _gh_resolved_token=$(gh auth token 2>/dev/null) || true
+  if [[ -n "${_gh_resolved_token:-}" ]]; then
+    GITHUB_TOKEN="$_gh_resolved_token"
+    export GITHUB_TOKEN
+  fi
+  unset _gh_resolved_token
+fi
