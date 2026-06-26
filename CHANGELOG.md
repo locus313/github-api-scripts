@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.1.0](https://github.com/locus313/github-api-scripts/compare/v1.0.0...v1.1.0) (2026-06-26)
+
+
+### Features
+
+* add dual-auth support (GITHUB_TOKEN + gh CLI) across all scripts ([#21](https://github.com/locus313/github-api-scripts/issues/21)) ([d45fe33](https://github.com/locus313/github-api-scripts/commit/d45fe33ce2ef61ad9be6efc57d9e456eb32964c0))
+
 ## 1.0.0 (2026-06-26)
 
 
