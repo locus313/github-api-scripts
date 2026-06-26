@@ -5,10 +5,14 @@
 # GitHub Copilot Enterprise licence & usage report, optionally enriched with
 # Entra ID department data. Output: CSV file + console summary.
 #
-# Authentication — no tokens or secrets required in flags:
-#   GitHub : gh CLI  (run 'gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"'
-#                     as enterprise owner or billing manager)
-#   Entra  : az CLI  (run 'az login' once; needs User.Read.All)
+# Authentication — no secrets required in flags:
+#   GitHub : GITHUB_TOKEN env var  (PAT with read:enterprise and
+#                                   manage_billing:enterprise scopes)
+#            OR provided automatically from an active gh auth session
+#            with the required scopes
+#   Entra  : az CLI  (optional; run 'az login' once; needs User.Read.All)
+#            Skipped automatically if az is not installed or not logged in.
+#            Use --no-entra to suppress Entra lookups explicitly.
 #
 # What this reports:
 #   • Every user with a Copilot seat, their plan type, and their pool contribution
@@ -36,6 +40,8 @@ source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 GITHUB_ENTERPRISE="${GITHUB_ENTERPRISE:-}"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+API_URL_PREFIX="${API_URL_PREFIX:-https://api.github.com}"
 UPN_DOMAIN="${UPN_DOMAIN:-}"
 CREDITS_PER_SEAT_OVERRIDE="${CREDITS_PER_SEAT_OVERRIDE:-}"
 OUTPUT_CSV="copilot-report-$(date +%Y%m%d).csv"
@@ -109,8 +115,9 @@ Usage: github-copilot-report.sh [OPTIONS]
 GitHub Copilot Enterprise licence + usage report, optionally enriched with
 Entra ID department information.
 
-Authentication (no secrets in flags — both CLIs handle auth):
-  GitHub  →  gh auth refresh --scopes "read:enterprise,manage_billing:enterprise"
+Authentication (no secrets in flags):
+  GitHub  →  export GITHUB_TOKEN=ghp_yourtoken  (read:enterprise,manage_billing:enterprise)
+             OR resolved automatically from an active gh auth session
   Entra   →  az login
 
 Options:
@@ -124,7 +131,7 @@ Options:
       --no-entra         Skip Entra ID department lookup
   -h, --help             Show this message
 
-Required gh CLI scopes:
+Required GITHUB_TOKEN scopes:
   read:enterprise
   manage_billing:enterprise          (requires enterprise owner or billing manager)
 
@@ -150,15 +157,17 @@ done
 [[ -z "$GITHUB_ENTERPRISE" ]] && \
     err "GitHub Enterprise slug is required  (-e / \$GITHUB_ENTERPRISE)"
 
-require_command gh
-require_command az
 require_command jq
 
-gh auth status &>/dev/null || err "gh CLI is not authenticated. Run: gh auth refresh --scopes \"read:enterprise,manage_billing:enterprise\""
+require_env_var GITHUB_TOKEN
+validate_github_token "bearer"
 
 # ── Acquire Microsoft Graph token via az CLI ──────────────────────────────────
 if [[ "$NO_ENTRA" == "true" ]]; then
     warn "Entra ID lookup disabled (--no-entra). Department column will be N/A."
+elif ! command -v az &>/dev/null; then
+    warn "az CLI is not installed — department/division grouping will be skipped."
+    warn "Install the Azure CLI and run 'az login' to enable Entra ID enrichment, or pass --no-entra."
 elif az account show &>/dev/null 2>&1; then
     info "Acquiring Microsoft Graph token via az CLI..."
     GRAPH_TOKEN=$(az account get-access-token \
@@ -176,14 +185,36 @@ else
     warn "Run 'az login' to enable Entra ID enrichment, or pass --no-entra."
 fi
 
-# ── GitHub API via gh CLI ─────────────────────────────────────────────────────
-# Thin wrapper that injects the standard Accept and version headers.
-# Pass any extra 'gh api' flags (e.g. --paginate, --jq, --input) as arguments.
-gh_api() {
-    gh api \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2026-03-10" \
-        "$@"
+# ── GitHub API via curl with Copilot API version ──────────────────────────────
+# The Copilot usage-metrics endpoints require API version 2026-03-10.
+# Uses the same retry/rate-limit logic as lib's gh_api.
+_copilot_api() {
+    local url="$1"
+    shift
+    [[ "${url}" == http* ]] || url="${API_URL_PREFIX:-https://api.github.com}${url}"
+
+    local _attempt _http_code _body
+    for _attempt in 1 2 3 4 5; do
+        _body=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "$@" "${url}")
+        _http_code=$(echo "${_body}" | tail -1)
+        _body=$(echo "${_body}" | head -n -1)
+        case "${_http_code}" in
+            200) echo "${_body}"; return 0 ;;
+            404) echo "__404__";  return 0 ;;
+            422) echo "__422__";  return 0 ;;
+            403|429)
+                warn "Rate limited (HTTP ${_http_code}). Sleeping 60s before retry ${_attempt}/5..."
+                sleep 60 ;;
+            *)
+                warn "HTTP ${_http_code} from GitHub API (attempt ${_attempt}/5)"
+                sleep 5 ;;
+        esac
+    done
+    err "Failed to reach ${url} after 5 attempts"
 }
 
 # fetch_usage_ndjson REPORT_PATH
@@ -193,7 +224,8 @@ gh_api() {
 fetch_usage_ndjson() {
     local path="$1"
     local resp links
-    resp=$(gh_api "${path}" 2>/dev/null) || return 0
+    resp=$(_copilot_api "${path}" 2>/dev/null) || return 0
+    [[ "${resp}" == "__404__" || "${resp}" == "__422__" ]] && return 0
     links=$(echo "$resp" | jq -r '.download_links[]? // empty' 2>/dev/null) || return 0
     [[ -z "$links" ]] && return 0
     while IFS= read -r url; do
@@ -208,9 +240,7 @@ TOTAL_ASSIGNED_SEATS=0
 
 fetch_seats() {
     local slug="$1"
-    gh_api --paginate \
-        --jq '.seats[]' \
-        "/enterprises/${slug}/copilot/billing/seats" \
+    gh_api_paginate "/enterprises/${slug}/copilot/billing/seats" '.seats[]' '2026-03-10' \
     | jq -s '.'
 }
 
@@ -294,10 +324,10 @@ while IFS= read -r _login; do
     [[ -z "$_login" ]] && continue
     _login_i=$(( _login_i + 1 ))
     printf '\r  [%d/%d] %s          ' "$_login_i" "$_LOGIN_COUNT" "$_login" >&2
-    _resp=$(gh_api \
+    _resp=$(_copilot_api \
         "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/ai_credit/usage?user=${_login}&year=${_BILLING_YEAR}&month=${_BILLING_MONTH}" \
         2>/dev/null) || _resp=""
-    if [[ -n "$_resp" ]]; then
+    if [[ -n "$_resp" && "${_resp}" != "__404__" && "${_resp}" != "__422__" ]]; then
         _credits=$(echo "$_resp" | jq '[.usageItems[]?.grossQuantity // 0] | add // 0 | round' 2>/dev/null || echo "0")
         # Store per-model breakdown
         while IFS=$'\t' read -r _model _qty; do
@@ -317,7 +347,7 @@ if [[ "$_billing_ok" == "true" ]]; then
     info "Loaded billing data for ${#USER_CREDITS_USED[@]} user(s)."
 else
     warn "Some billing API calls failed — credits may show 0 for affected users."
-    warn "Ensure manage_billing:enterprise scope: gh auth refresh --scopes \"read:enterprise,manage_billing:enterprise\""
+    warn "Ensure manage_billing:enterprise scope: set GITHUB_TOKEN with the required scopes"
 fi
 
 # Build sorted list of all model names seen across all users
