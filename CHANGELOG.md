@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.1.1](https://github.com/locus313/github-api-scripts/compare/v1.1.0...v1.1.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **scripts:** BSD head portability and restore billing and Entra ID features ([#23](https://github.com/locus313/github-api-scripts/issues/23)) ([e5a17af](https://github.com/locus313/github-api-scripts/commit/e5a17af719dbf48d0597146d28b8e8e12aa01a0a))
+
 ## [1.1.0](https://github.com/locus313/github-api-scripts/compare/v1.0.0...v1.1.0) (2026-06-26)
 
 
