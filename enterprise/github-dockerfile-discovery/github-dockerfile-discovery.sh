@@ -136,7 +136,7 @@ search_dockerfiles_in_org() {
     local resp
     resp=$(gh_api "/search/code?q=filename:Dockerfile+org:${org}&per_page=100&page=${page}")
 
-    if [ "${resp}" = "__422__" ]; then
+    if [[ "${resp}" == "__422__" || "${resp}" == "__404__" ]]; then
       print_warning "  Code search not available for org '${org}'. Skipping."
       return 0
     fi
@@ -282,7 +282,7 @@ fetch_and_parse_dockerfile() {
 
   resp=$(gh_api "/repos/${repo_full_name}/contents/${encoded_path}" 2>/dev/null || echo "")
 
-  if [ -z "${resp}" ]; then
+  if [[ -z "${resp}" || "${resp}" == "__404__" || "${resp}" == "__422__" ]]; then
     print_warning "    Could not fetch ${repo_full_name}/${path}"
     return 0
   fi
