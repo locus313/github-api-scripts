@@ -10,6 +10,48 @@ This changelog is automatically maintained by [Release Please](https://github.co
 
 ## Pre-release history
 
+## 1.0.0 (2026-06-26)
+
+
+### Features
+
+* add advanced issue search documentation ([e2634db](https://github.com/locus313/github-api-scripts/commit/e2634dbb1059eae5b90e88c850a769e76cbc4f62))
+* add CI workflow to handle documentation-only pull requests ([da4a2b4](https://github.com/locus313/github-api-scripts/commit/da4a2b4d6b09d6c8bd873e631d8d5ac45d9da73e))
+* add composite actions, automated releases, and Conventional Commits workflow ([f16f4a8](https://github.com/locus313/github-api-scripts/commit/f16f4a88c481bfa31df697604e3d41c5e6445890))
+* add Copilot skills and path-scoped instructions ([#11](https://github.com/locus313/github-api-scripts/issues/11)) ([4c7b045](https://github.com/locus313/github-api-scripts/commit/4c7b045bae258314f374b92a30e0d628a1b521be))
+* add GitHub API helpers for organization management and enhance existing functions ([35a40a1](https://github.com/locus313/github-api-scripts/commit/35a40a1268539a99f414e11d32cc235924aef0d3))
+* add github-organize-stars script for organizing starred repositories into GitHub Lists ([00f3ad0](https://github.com/locus313/github-api-scripts/commit/00f3ad04ea5b3a227946eb24dcd9c60b972d0f4d))
+* add pre-commit hooks for secret scanning and shell script security checks ([032685f](https://github.com/locus313/github-api-scripts/commit/032685f70f0be425075a3f6a3a26839de1bba16f))
+* add repository name filtering option for permission management script ([761a84b](https://github.com/locus313/github-api-scripts/commit/761a84beaf3c217e715562773bca925321f1f3ba))
+* add script to programmatically install enterprise-owned GitHub App ([f9f5e0c](https://github.com/locus313/github-api-scripts/commit/f9f5e0c50e030b7be9dfa56eeca9eb1a7453cdee))
+* create issue templates for consistent reporting ([e2634db](https://github.com/locus313/github-api-scripts/commit/e2634dbb1059eae5b90e88c850a769e76cbc4f62))
+* **docs:** add comprehensive Copilot instructions for GitHub API scripts ([42a6622](https://github.com/locus313/github-api-scripts/commit/42a66227ba9d220b79e3bbf2645ecbcaa1dd1a1b))
+* document sub-issues and parent issues functionality ([e2634db](https://github.com/locus313/github-api-scripts/commit/e2634dbb1059eae5b90e88c850a769e76cbc4f62))
+* enhance documentation and error handling across scripts for improved usability and validation ([5aa10f7](https://github.com/locus313/github-api-scripts/commit/5aa10f7cf2ab882367b2458bfab631fa60a2ff63))
+* enhance error handling by adding informative messages for missing environment variables ([bb511bd](https://github.com/locus313/github-api-scripts/commit/bb511bd7560994b56aaf120c31644d54ff4fc32a))
+* enhance scripts with validation functions and improve reporting output ([c57e562](https://github.com/locus313/github-api-scripts/commit/c57e56266e65e3f82fbaf62d281462a9a7aa244b))
+* enhance validation and payload handling across multiple scripts ([7a22e3c](https://github.com/locus313/github-api-scripts/commit/7a22e3c83117352366affbf331e49365e27b82dc))
+* enhance validation for user inputs and improve error handling across scripts ([d7e0c44](https://github.com/locus313/github-api-scripts/commit/d7e0c44837ee937934b159aabbe0b207571ffb13))
+* **GH:** add sponsor link ([#6](https://github.com/locus313/github-api-scripts/issues/6)) ([e71f11c](https://github.com/locus313/github-api-scripts/commit/e71f11cfb13c1f93d798efd37587570d56efbc7c))
+* implement GitHub release skill documentation ([e2634db](https://github.com/locus313/github-api-scripts/commit/e2634dbb1059eae5b90e88c850a769e76cbc4f62))
+* introduce github-add-repo-permissions script for flexible team permission management ([b5c651d](https://github.com/locus313/github-api-scripts/commit/b5c651dee021502c00ed17a792147e696b6cc141))
+* make repo AI-ready ([#10](https://github.com/locus313/github-api-scripts/issues/10)) ([af1a0e4](https://github.com/locus313/github-api-scripts/commit/af1a0e44cfa5e818ce4aab1422dc862aeaec2fe3))
+* **README:** description and installation ([#3](https://github.com/locus313/github-api-scripts/issues/3)) ([5bf42eb](https://github.com/locus313/github-api-scripts/commit/5bf42ebbe5df81951b167782b6f3e8b79ee20c4d))
+* **Script:** initial github-add-repo-admin.sh ([#5](https://github.com/locus313/github-api-scripts/issues/5)) ([0f46010](https://github.com/locus313/github-api-scripts/commit/0f460102b67f9711f9b3d8235da3867d8e2a2a14))
+* **Script:** initial github-get-consumed-licenses.sh ([#8](https://github.com/locus313/github-api-scripts/issues/8)) ([dedf034](https://github.com/locus313/github-api-scripts/commit/dedf034c72236a7f391a680db13c85d134459810))
+* **Script:** initial github-import-repo.sh ([#1](https://github.com/locus313/github-api-scripts/issues/1)) ([2fa4c1a](https://github.com/locus313/github-api-scripts/commit/2fa4c1a9725f6dae66691227b5fd9315adc84670))
+* **Script:** initial github-monthly-issues-report.sh ([#4](https://github.com/locus313/github-api-scripts/issues/4)) ([c0cf62d](https://github.com/locus313/github-api-scripts/commit/c0cf62d33c18e4640e207006f5bec75b28c4f9ad))
+* **Script:** initial github-repo-from-template.sh ([#2](https://github.com/locus313/github-api-scripts/issues/2)) ([0143bce](https://github.com/locus313/github-api-scripts/commit/0143bceae0e13452f1f480ee8d7a29540e2e86e5))
+* update README with GitHub Actions integration examples and improve script usage instructions ([c5716e9](https://github.com/locus313/github-api-scripts/commit/c5716e922347ca11b81c7d2d536416124c6bbf06))
+
+
+### Bug Fixes
+
+* improve echo messages and formatting for better readability in scripts ([b547df5](https://github.com/locus313/github-api-scripts/commit/b547df56490eb05250537edca4f524ab00203c64))
+* improve JWT signing error handling and response parsing in installation script ([c9a3810](https://github.com/locus313/github-api-scripts/commit/c9a3810fb8b6c6869e88893c9af6f2cf64761682))
+* open PR instead of pushing directly to protected main branch ([#14](https://github.com/locus313/github-api-scripts/issues/14)) ([37982f2](https://github.com/locus313/github-api-scripts/commit/37982f260b2b5306ca390c4f7e6b8fcdd1e40f8b))
+* update shebang from /bin/bash to /usr/bin/env bash in multiple scripts ([bcdc7db](https://github.com/locus313/github-api-scripts/commit/bcdc7dba96881a7e300746aac71a69de487b3ebd))
+
 ### 2026-06-26
 
 - feat: composite `action.yml` for all 16 automation scripts — each script is now usable as a `uses:` step in GitHub Actions workflows, enabling Dependabot to track and bump version pins automatically
@@ -118,4 +160,3 @@ This changelog is automatically maintained by [Release Please](https://github.co
 - `github-repo-from-template` — creates a private repo from a template, assigns admin teams, and invites a CD user
 - `github-monthly-issues-report` — generates an HTML report of issues created in a date range with label/timeline tracking
 - README with project overview and installation instructions
-
