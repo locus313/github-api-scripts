@@ -4,12 +4,6 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
-<!-- Release Please inserts new entries above this line -->
-
----
-
-## Pre-release history
-
 ## 1.0.0 (2026-06-26)
 
 
@@ -51,6 +45,10 @@ This changelog is automatically maintained by [Release Please](https://github.co
 * improve JWT signing error handling and response parsing in installation script ([c9a3810](https://github.com/locus313/github-api-scripts/commit/c9a3810fb8b6c6869e88893c9af6f2cf64761682))
 * open PR instead of pushing directly to protected main branch ([#14](https://github.com/locus313/github-api-scripts/issues/14)) ([37982f2](https://github.com/locus313/github-api-scripts/commit/37982f260b2b5306ca390c4f7e6b8fcdd1e40f8b))
 * update shebang from /bin/bash to /usr/bin/env bash in multiple scripts ([bcdc7db](https://github.com/locus313/github-api-scripts/commit/bcdc7dba96881a7e300746aac71a69de487b3ebd))
+
+---
+
+## Pre-release history
 
 ### 2026-06-26
 
