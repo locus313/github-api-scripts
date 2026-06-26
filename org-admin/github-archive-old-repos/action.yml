@@ -3,7 +3,7 @@ description: 'Archive repositories that have not been updated within a configura
 inputs:
   github-token:
     description: 'PAT with repo scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -29,7 +29,7 @@ runs:
     - name: Archive old repositories
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         YEARS_THRESHOLD: ${{ inputs.years-threshold }}
         REPORT_DIR: ${{ inputs.report-dir }}

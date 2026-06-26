@@ -3,7 +3,7 @@ description: 'Dismiss all open Dependabot, code-scanning, and secret-scanning al
 inputs:
   github-token:
     description: 'PAT with security_events and repo scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -37,7 +37,7 @@ runs:
     - name: Close archived repo security alerts
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         DEPENDABOT_REASON: ${{ inputs.dependabot-reason }}
         CODE_SCANNING_REASON: ${{ inputs.code-scanning-reason }}

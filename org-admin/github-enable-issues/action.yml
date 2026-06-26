@@ -3,7 +3,7 @@ description: 'Enable the Issues feature on all repositories where it is currentl
 inputs:
   github-token:
     description: 'PAT with repo or admin:org scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -21,7 +21,7 @@ runs:
     - name: Enable Issues on repositories
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         API_URL_PREFIX: ${{ inputs.api-url-prefix }}
       run: |

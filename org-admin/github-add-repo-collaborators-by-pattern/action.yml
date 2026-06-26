@@ -3,7 +3,7 @@ description: 'Add individual collaborators to repositories whose names match a r
 inputs:
   github-token:
     description: 'PAT with repo and admin:org scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -31,7 +31,7 @@ runs:
     - name: Add collaborators to matching repositories
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         COLLABORATORS: ${{ inputs.collaborators }}
         REPO_NAME_REGEX: ${{ inputs.repo-name-regex }}

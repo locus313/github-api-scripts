@@ -1,0 +1,29 @@
+name: 'Repo Permissions Report'
+description: 'Export repository collaborator/team permissions and branch-approval bypass actors to CSV'
+inputs:
+  github-token:
+    description: 'GitHub token with repo and read:org scopes. Defaults to the built-in GITHUB_TOKEN.'
+    required: false
+  repo:
+    description: 'Target repository in OWNER/REPO format'
+    required: true
+  branch:
+    description: 'Branch to evaluate (default: repository default branch)'
+    required: false
+    default: ''
+  output:
+    description: 'Output CSV file path'
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Generate repository permissions report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
+      run: |
+        ARGS=(-r "${{ inputs.repo }}")
+        [[ -n "${{ inputs.branch }}" ]] && ARGS+=(-b "${{ inputs.branch }}")
+        [[ -n "${{ inputs.output }}" ]] && ARGS+=(-o "${{ inputs.output }}")
+        "${{ github.action_path }}/github-repo-permissions-report.sh" "${ARGS[@]}"

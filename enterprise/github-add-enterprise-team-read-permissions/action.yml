@@ -3,7 +3,7 @@ description: 'Grant read permissions to an enterprise team across all organizati
 inputs:
   github-token:
     description: 'PAT with admin:enterprise scope'
-    required: true
+    required: false
   enterprise:
     description: 'GitHub Enterprise slug'
     required: true
@@ -24,7 +24,7 @@ runs:
     - name: Add enterprise team read permissions
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ENTERPRISE: ${{ inputs.enterprise }}
         ENTERPRISE_TEAM_SLUG: ${{ inputs.enterprise-team-slug }}
         ALL_REPO_READ_ROLE_NAME: ${{ inputs.all-repo-read-role-name }}

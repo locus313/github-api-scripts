@@ -3,7 +3,7 @@ description: 'Grant team permissions across all repositories in a GitHub organiz
 inputs:
   github-token:
     description: 'PAT with admin:org scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -41,7 +41,7 @@ runs:
     - name: Grant team permissions to repositories
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         REPO_NAME_FILTER: ${{ inputs.repo-name-filter }}
         REPO_ADMIN: ${{ inputs.repo-admin }}

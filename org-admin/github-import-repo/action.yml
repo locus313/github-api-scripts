@@ -3,7 +3,7 @@ description: 'Mirror-clone a repository and push it to a new private repository 
 inputs:
   github-token:
     description: 'PAT with repo scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -30,7 +30,7 @@ runs:
     - name: Import repository
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         OWNER_USERNAME: ${{ inputs.owner-username }}
         API_URL_PREFIX: ${{ inputs.api-url-prefix }}

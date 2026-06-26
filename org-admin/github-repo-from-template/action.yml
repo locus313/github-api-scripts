@@ -3,7 +3,7 @@ description: 'Create a private repository from a template with team permissions 
 inputs:
   github-token:
     description: 'PAT with repo scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization name'
     required: true
@@ -37,7 +37,7 @@ runs:
     - name: Create repository from template
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
         ORG: ${{ inputs.org }}
         TEMPLATE_REPO: ${{ inputs.template-repo }}
         CD_USERNAME: ${{ inputs.cd-username }}
