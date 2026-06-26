@@ -854,11 +854,15 @@ All scripts can leverage a shared utility library for common operations like val
 - `require_command <cmd> [hint]` — Exit if command is not in PATH
 - `validate_token <VAR_NAME> [bearer]` — Validate GitHub token by calling `/user` endpoint
 - `validate_github_token [bearer]` — Convenience wrapper for `GITHUB_TOKEN` validation
+- `validate_slug <value> <label>` — Exit if value contains characters other than alphanumeric, hyphen, or underscore
+
+**Auth helpers:**
+- `configure_gh_auth [scope_hint]` — Bridge `GITHUB_TOKEN→GH_TOKEN` for scripts that use the `gh` CLI, or verify an active `gh` auth session if no token is set
 
 **API helpers:**
 - `get_repo_page_count <url>` — Get total page count from paginated REST endpoint
-- `validate_slug <value> <label>` — Exit if value contains characters other than alphanumeric, hyphen, or underscore
-- `gh_api <path|url> [curl args...]` — Bearer-auth REST helper with automatic rate-limit retry (up to 5 attempts); returns `__404__` / `__422__` for those status codes instead of failing
+- `gh_api <path|url> [curl args...]` — Bearer-auth REST helper with automatic rate-limit retry (up to 5 attempts); returns the literal string `__404__` or `__422__` (exit 0) for those status codes — callers must check for these sentinels before passing the result to `jq`
+- `gh_api_paginate <path> [jq_filter] [api_version]` — Paginated REST helper that follows `Link` headers and streams items through `jq_filter` (default `.[]`); silently returns empty output on 404/422; pipe through `jq -s '.'` to collect all items as an array
 - `_paginate_orgs_endpoint <jq_filter> <url_template>` — Page through an org-list REST endpoint, printing one login per line; use `PAGE` as a placeholder in the URL template
 - `_graphql_enterprise_orgs` — Cursor-based GraphQL pagination for all orgs in `ENTERPRISE`; prints one login per line
 - `get_enterprise_orgs` — Three-tier enterprise org resolver: tries REST `/enterprises/{slug}/organizations`, falls back to GraphQL, then falls back to `/user/orgs`
