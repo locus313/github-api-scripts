@@ -43,6 +43,7 @@ GITHUB_ENTERPRISE="${GITHUB_ENTERPRISE:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 API_URL_PREFIX="${API_URL_PREFIX:-https://api.github.com}"
 UPN_DOMAIN="${UPN_DOMAIN:-}"
+ENTRA_TENANT="${ENTRA_TENANT:-}"
 CREDITS_PER_SEAT_OVERRIDE="${CREDITS_PER_SEAT_OVERRIDE:-}"
 OUTPUT_CSV="copilot-report-$(date +%Y%m%d).csv"
 NO_ENTRA=false
@@ -125,6 +126,11 @@ Options:
   -d, --upn-domain DOM   Email domain for Entra lookup when GitHub carries no
                          email address  (or $UPN_DOMAIN, e.g. example.com)
                          Login 'john_example' + domain 'example.com' → john@example.com
+                         The tenant ID is auto-resolved from this domain via
+                         OIDC discovery, so --entra-tenant is rarely needed.
+      --entra-tenant ID  Override the Azure AD tenant ID for the Graph lookup
+                         (or $ENTRA_TENANT). Auto-resolved from --upn-domain
+                         when not set; only needed to override that result.
       --credits N        Override credits-per-seat value  (or $CREDITS_PER_SEAT_OVERRIDE)
                          Use if your portal shows a different pool size than expected
       --output FILE      Output CSV (default: copilot-report-YYYYMMDD.csv)
@@ -143,8 +149,9 @@ EOF
 # ── Argument parsing ──────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -e|--enterprise)  GITHUB_ENTERPRISE="$2";         shift 2 ;;
+        -e|--enterprise)   GITHUB_ENTERPRISE="$2";         shift 2 ;;
         -d|--upn-domain)  UPN_DOMAIN="$2";                 shift 2 ;;
+        --entra-tenant)   ENTRA_TENANT="$2";               shift 2 ;;
         --credits)        CREDITS_PER_SEAT_OVERRIDE="$2";  shift 2 ;;
         --output)         OUTPUT_CSV="$2";                 shift 2 ;;
         --no-entra)       NO_ENTRA=true;                   shift   ;;
@@ -169,16 +176,36 @@ elif ! command -v az &>/dev/null; then
     warn "az CLI is not installed — department/division grouping will be skipped."
     warn "Install the Azure CLI and run 'az login' to enable Entra ID enrichment, or pass --no-entra."
 elif az account show &>/dev/null 2>&1; then
+    # Auto-resolve tenant ID from UPN domain via OIDC discovery when not explicitly set.
+    # GET https://login.microsoftonline.com/{domain}/.well-known/openid-configuration
+    # returns an issuer like https://sts.windows.net/{tenant-id}/ — extract the GUID.
+    if [[ -z "$ENTRA_TENANT" && -n "$UPN_DOMAIN" ]]; then
+        _resolved_tenant=$(curl -sf \
+            "https://login.microsoftonline.com/${UPN_DOMAIN}/.well-known/openid-configuration" \
+            2>/dev/null \
+            | jq -r '.issuer // empty' \
+            | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') || true
+        if [[ -n "$_resolved_tenant" ]]; then
+            ENTRA_TENANT="$_resolved_tenant"
+            info "Auto-resolved Entra tenant '${ENTRA_TENANT}' from domain '${UPN_DOMAIN}'."
+        else
+            warn "Could not resolve tenant from domain '${UPN_DOMAIN}' — using default az tenant."
+        fi
+    fi
     info "Acquiring Microsoft Graph token via az CLI..."
     GRAPH_TOKEN=$(az account get-access-token \
         --resource https://graph.microsoft.com \
+        ${ENTRA_TENANT:+--tenant "$ENTRA_TENANT"} \
         --query accessToken -o tsv 2>/dev/null) || true
     if [[ -n "$GRAPH_TOKEN" ]]; then
         ENTRA_ENABLED=true
-        info "Graph token acquired."
+        [[ -n "$ENTRA_TENANT" ]] && info "Graph token acquired (tenant: ${ENTRA_TENANT})." \
+                                  || info "Graph token acquired."
     else
         warn "az is logged in but could not get a Graph token — department lookup disabled."
         warn "Ensure your account has User.Read.All permission in the target tenant."
+        [[ -z "$ENTRA_TENANT" ]] && \
+            warn "If you have multiple tenants, try: --entra-tenant <TENANT_ID>"
     fi
 else
     warn "az CLI is not logged in — department/division grouping will be skipped."
@@ -201,7 +228,7 @@ _copilot_api() {
             -H "X-GitHub-Api-Version: 2026-03-10" \
             "$@" "${url}")
         _http_code=$(echo "${_body}" | tail -1)
-        _body=$(echo "${_body}" | head -n -1)
+        _body=$(echo "${_body}" | sed '$d')
         case "${_http_code}" in
             200) echo "${_body}"; return 0 ;;
             404) echo "__404__";  return 0 ;;
@@ -262,13 +289,14 @@ graph_user_info() {
         return
     fi
 
-    # az rest reuses the active az session and handles token refresh automatically
+    # Use curl with the explicit GRAPH_TOKEN for reliable auth and proper URL encoding.
     local resp
-    resp=$(az rest \
-        --method GET \
-        --url "https://graph.microsoft.com/v1.0/users" \
-        --url-parameters "\$filter=mail eq '${query}' or userPrincipalName eq '${query}'" \
-                         "\$select=displayName,department,jobTitle,mail,userPrincipalName" \
+    resp=$(curl -sfG \
+        -H "Authorization: Bearer ${GRAPH_TOKEN}" \
+        -H "ConsistencyLevel: eventual" \
+        --data-urlencode "\$filter=mail eq '${query}' or userPrincipalName eq '${query}'" \
+        --data-urlencode "\$select=displayName,department,jobTitle,mail,userPrincipalName" \
+        "https://graph.microsoft.com/v1.0/users" \
         2>/dev/null) || resp='{"value":[]}'
 
     local result
@@ -316,6 +344,7 @@ declare -A USER_CREDITS_USED
 declare -A USER_MODEL_CREDITS   # key: "login|model"  value: credits
 declare -A _ALL_MODELS_SET      # keys are unique model names seen
 _billing_ok=true
+_billing_fail_statuses=""
 
 _ALL_LOGINS=$(echo "$SEATS" | jq -r '.[].assignee.login')
 _LOGIN_COUNT=$(echo "$_ALL_LOGINS" | wc -l | tr -d ' ')
@@ -325,9 +354,12 @@ while IFS= read -r _login; do
     _login_i=$(( _login_i + 1 ))
     printf '\r  [%d/%d] %s          ' "$_login_i" "$_LOGIN_COUNT" "$_login" >&2
     _resp=$(_copilot_api \
-        "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/ai_credit/usage?user=${_login}&year=${_BILLING_YEAR}&month=${_BILLING_MONTH}" \
-        2>/dev/null) || _resp=""
-    if [[ -n "$_resp" && "${_resp}" != "__404__" && "${_resp}" != "__422__" ]]; then
+        "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/ai_credit/usage?user=${_login}&year=${_BILLING_YEAR}&month=${_BILLING_MONTH}") || _resp=""
+    if [[ "${_resp}" == "__404__" || "${_resp}" == "__422__" ]]; then
+        # No usage data this month — valid, treat as 0 credits.
+        _credits="0"
+    elif [[ -n "$_resp" ]]; then
+        # Success: parse credit usage
         _credits=$(echo "$_resp" | jq '[.usageItems[]?.grossQuantity // 0] | add // 0 | round' 2>/dev/null || echo "0")
         # Store per-model breakdown
         while IFS=$'\t' read -r _model _qty; do
@@ -338,6 +370,7 @@ while IFS= read -r _login; do
     else
         _credits="0"
         _billing_ok=false
+        _billing_fail_statuses="${_billing_fail_statuses} ${_login}(empty)"
     fi
     USER_CREDITS_USED["$_login"]="$_credits"
 done <<< "$_ALL_LOGINS"
@@ -348,6 +381,8 @@ if [[ "$_billing_ok" == "true" ]]; then
 else
     warn "Some billing API calls failed — credits may show 0 for affected users."
     warn "Ensure manage_billing:enterprise scope: set GITHUB_TOKEN with the required scopes"
+    [[ -n "$_billing_fail_statuses" ]] && \
+        warn "Failed users:${_billing_fail_statuses}"
 fi
 
 # Build sorted list of all model names seen across all users
