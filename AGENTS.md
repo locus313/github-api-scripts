@@ -79,14 +79,58 @@ find . -name "*.sh" | xargs shellcheck --severity=warning --exclude=SC2034,SC109
 
 ## Testing
 
-There is no automated test suite. The validation approach is:
+The project has a bats unit-test suite in `tests/`. **Every new script must ship with tests.**
 
-1. **Pre-commit hook** — shellcheck on every staged `.sh` file; gitleaks secret scan
-2. **Dry-run flags** — several scripts support `--dry-run` to preview changes without applying them:
-   - `github-close-archived-repo-security-alerts`
-   - `github-enable-issues`
-   - `github-organize-stars`
-3. **Test org first** — always run against a non-production GitHub org before production
+```bash
+# Run all tests
+bats tests/
+
+# Run a single file
+bats tests/test_common.bats
+```
+
+### Test files
+
+| File | What it covers |
+|------|----------------|
+| `tests/test_common.bats` | `lib/github-common.sh` — pure-logic functions (`validate_slug`, `require_env_var`, `require_command`, `err`, `configure_gh_auth`, `validate_token`, `get_repo_page_count`) and API helpers (`gh_api` sentinels, `gh_api_paginate`) |
+| `tests/test_script_validation.bats` | Every script — missing required env vars exit 1, invalid CLI args exit 1, `--help` exits 0, script-specific enum/allowlist validation |
+| `tests/mock_curl.sh` | Universal drop-in curl mock (used by both test files); response data via env vars `MOCK_CURL_CODE`, `MOCK_CURL_BODY`, `MOCK_CURL_LINK` |
+
+### What to test for every new script
+
+1. **Missing required env vars** — one `@test` per required variable, in the order the script checks them. Each test asserts `status -eq 1`.
+2. **Invalid CLI args** — unknown flag exits 1 with an "Unknown" message.
+3. **`--help` flag** — exits 0 (for scripts that implement it).
+4. **Recognised flags** — `--dry-run` and other known flags do not trigger the unknown-arg error (test by asserting output does *not* contain "Unknown").
+5. **Script-specific guards** — enum validation (`--type`, `DEPENDABOT_REASON`), URL allowlists (`GIT_URL_PREFIX`), required positional args.
+
+### Mocking pattern
+
+Tests shadow real binaries by prepending a `MOCK_BIN` directory to `PATH`:
+
+```bash
+setup() {
+  MOCK_BIN="$(mktemp -d)"
+  # Fail gh auth so GITHUB_TOKEN is never auto-resolved from a session
+  printf '#!/bin/sh\nexit 1\n' > "$MOCK_BIN/gh"
+  chmod +x "$MOCK_BIN/gh"
+}
+
+teardown() { rm -rf "$MOCK_BIN"; }
+
+@test "my-script: exits 1 when GITHUB_TOKEN is not set" {
+  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/domain/my-script/my-script.sh'"
+  [ "$status" -eq 1 ]
+}
+```
+
+Use `_mock_curl_200` (defined in `test_script_validation.bats`) when a test must reach code that runs after `validate_github_token`.
+
+### Dry-run flags and other testing approaches
+
+- **`--dry-run`** — several scripts support it to preview changes without applying them.
+- **Test org first** — always run against a non-production GitHub org before production.
 
 ---
 
@@ -185,8 +229,9 @@ done
 4. **Source the shared library** using `SCRIPT_DIR`
 5. **Validate all inputs** before any API calls
 6. **Create `action.yml`** in the same directory — expose every env var as an input (required inputs first, optional inputs with defaults); map CLI flags (`--dry-run`, `--type`, etc.) to boolean/string inputs and construct the `ARGS` array in the `run:` step. See existing `action.yml` files for the pattern.
-7. **Add to README.md** — follow the existing format: use case, env var table, usage example, output format; add a row to the Available Actions table in the "Using Scripts in GitHub Actions" section
-8. Place in the correct domain:
+7. **Add tests to `tests/test_script_validation.bats`** — add a labelled section (`# ═══ github-<name> ═══`) with tests for: every required env var missing (exit 1), unknown CLI args (exit 1), `--help` exits 0, and any script-specific validation (enum guards, URL allowlists, positional args). See existing sections for the pattern.
+8. **Add to README.md** — follow the existing format: use case, env var table, usage example, output format; add a row to the Available Actions table in the "Using Scripts in GitHub Actions" section
+9. Place in the correct domain:
    - `org-admin/` — organization-level operations (repos, teams, members)
    - `enterprise/` — enterprise-level operations (licenses, org enumeration)
    - `reporting/` — read-only reports and audits
@@ -199,7 +244,7 @@ done
 - **Pre-commit hook:** `.githooks/pre-commit` — runs gitleaks + shellcheck on staged `.sh` files
 - **Install:** `./install-hooks.sh` or `git config core.hooksPath .githooks`
 - **Bypass (emergency only):** `git commit --no-verify`
-- **CI:** shellcheck runs on all `.sh` files on every PR (`.github/workflows/ci.yml`)
+- **CI:** shellcheck runs on all `.sh` files on every PR (`.github/workflows/ci.yml`); bats unit tests run in a dedicated `test` job (`bats tests/`)
 - **Releases:** automated by Release Please (`.github/workflows/release.yml`) — pushes to `main` trigger a release PR; merging it publishes the GitHub Release and tag
 
 ## Commit Messages — Conventional Commits (required)

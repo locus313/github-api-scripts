@@ -112,6 +112,28 @@ brew install gitleaks shellcheck
 > [!TIP]
 > To bypass the hooks in an emergency: `git commit --no-verify`. Use sparingly — the hooks exist to prevent secrets from reaching the remote.
 
+### Unit Tests
+
+The repository includes a [bats](https://github.com/bats-core/bats-core) unit-test suite in `tests/`. Install bats and run the full suite:
+
+```bash
+# macOS
+brew install bats-core
+
+# Ubuntu / Debian
+sudo apt-get install -y bats
+
+# Run all tests
+bats tests/
+```
+
+| File | What it covers |
+|------|----------------|
+| `tests/test_common.bats` | `lib/github-common.sh` functions (`validate_slug`, `require_env_var`, `gh_api` sentinels, `gh_api_paginate`, etc.) |
+| `tests/test_script_validation.bats` | Every script — missing required env vars, invalid CLI args, `--help`, and script-specific guards |
+
+CI runs `bats tests/` on every pull request alongside shellcheck.
+
 ## Scripts
 
 Each script is a self-contained utility designed for a specific task. Navigate to the script's directory, set the required environment variables, and execute.
@@ -1159,8 +1181,10 @@ Contributions are welcome! Please follow these steps:
    - Start with the `# ===` header and `set -euo pipefail`
    - Source `lib/github-common.sh` and validate all inputs
    - Create `action.yml` in the same directory (see existing actions for the pattern)
+   - Add a test section for the new script in `tests/test_script_validation.bats`
 4. **Update README.md** with the env var table, usage example, and a row in the Available Actions table
 5. **Run shellcheck:** `shellcheck --severity=warning --exclude=SC2034,SC1091 --shell=bash your-script.sh`
-6. **Test on a non-production org** before submitting
+6. **Run the test suite:** `bats tests/`
+7. **Test on a non-production org** before submitting
 7. **Commit using [Conventional Commits](https://www.conventionalcommits.org/)** — `CHANGELOG.md` is auto-generated from commit messages; do not edit it manually
 8. **Open a PR** — the PR template will guide you through the checklist
