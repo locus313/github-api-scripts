@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.1.4](https://github.com/locus313/github-api-scripts/compare/v1.1.3...v1.1.4) (2026-06-27)
+
+
+### Bug Fixes
+
+* ponytail audit — remove ~330 lines of redundant code ([#30](https://github.com/locus313/github-api-scripts/issues/30)) ([042d71e](https://github.com/locus313/github-api-scripts/commit/042d71e3d5d1f36f8e164993115bf708aa0143c7))
+
 ## [1.1.3](https://github.com/locus313/github-api-scripts/compare/v1.1.2...v1.1.3) (2026-06-27)
 
 
