@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.1.5](https://github.com/locus313/github-api-scripts/compare/v1.1.4...v1.1.5) (2026-06-27)
+
+
+### Bug Fixes
+
+* point release-please to VERSION file ([#32](https://github.com/locus313/github-api-scripts/issues/32)) ([21e9641](https://github.com/locus313/github-api-scripts/commit/21e96419bbbe8b224106eb1168da39072ada220b))
+
 ## [1.1.4](https://github.com/locus313/github-api-scripts/compare/v1.1.3...v1.1.4) (2026-06-27)
 
 
