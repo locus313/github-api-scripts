@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.2.1](https://github.com/locus313/github-api-scripts/compare/v1.2.0...v1.2.1) (2026-06-27)
+
+
+### Code Refactoring
+
+* eliminate plan_credits duplication, _copilot_api wrapper, and test boilerplate ([#43](https://github.com/locus313/github-api-scripts/issues/43)) ([16fe695](https://github.com/locus313/github-api-scripts/commit/16fe695965b589dbb59e39e8715882aa0cc38463))
+* is now visible in Release Please (section: Code Refactoring) ([834f342](https://github.com/locus313/github-api-scripts/commit/834f3428c39c8c3afeeb505a64c1d7b5607ac281))
+
 ## [1.2.0](https://github.com/locus313/github-api-scripts/compare/v1.1.8...v1.2.0) (2026-06-27)
 
 
