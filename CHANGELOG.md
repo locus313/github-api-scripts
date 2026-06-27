@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.2.0](https://github.com/locus313/github-api-scripts/compare/v1.1.8...v1.2.0) (2026-06-27)
+
+
+### Features
+
+* add bats unit tests for lib/github-common.sh ([#41](https://github.com/locus313/github-api-scripts/issues/41)) ([226c1f3](https://github.com/locus313/github-api-scripts/commit/226c1f360b24a95c033ab292ece3ef6bea65ef33))
+
 ## [1.1.8](https://github.com/locus313/github-api-scripts/compare/v1.1.7...v1.1.8) (2026-06-27)
 
 
