@@ -50,11 +50,6 @@ NO_ENTRA=false
 GRAPH_TOKEN=""
 ENTRA_ENABLED=false
 
-# ── Thin wrappers around lib output functions ─────────────────────────────────
-err()  { print_error  "$*"; exit 1; }
-info() { print_status "$*"; }
-warn() { print_warning "$*"; }
-
 # ── Derive UPN from GitHub login when no email is available ─────────────────
 # Pattern: 'john_example' + domain 'example.com'  →  'john@example.com'
 # Strips everything from the last underscore onwards, then appends @domain.
@@ -171,10 +166,10 @@ validate_github_token "bearer"
 
 # ── Acquire Microsoft Graph token via az CLI ──────────────────────────────────
 if [[ "$NO_ENTRA" == "true" ]]; then
-    warn "Entra ID lookup disabled (--no-entra). Department column will be N/A."
+    print_warning "Entra ID lookup disabled (--no-entra). Department column will be N/A."
 elif ! command -v az &>/dev/null; then
-    warn "az CLI is not installed — department/division grouping will be skipped."
-    warn "Install the Azure CLI and run 'az login' to enable Entra ID enrichment, or pass --no-entra."
+    print_warning "az CLI is not installed — department/division grouping will be skipped."
+    print_warning "Install the Azure CLI and run 'az login' to enable Entra ID enrichment, or pass --no-entra."
 elif az account show &>/dev/null 2>&1; then
     # Auto-resolve tenant ID from UPN domain via OIDC discovery when not explicitly set.
     # GET https://login.microsoftonline.com/{domain}/.well-known/openid-configuration
@@ -187,61 +182,36 @@ elif az account show &>/dev/null 2>&1; then
             | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') || true
         if [[ -n "$_resolved_tenant" ]]; then
             ENTRA_TENANT="$_resolved_tenant"
-            info "Auto-resolved Entra tenant '${ENTRA_TENANT}' from domain '${UPN_DOMAIN}'."
+            print_status "Auto-resolved Entra tenant '${ENTRA_TENANT}' from domain '${UPN_DOMAIN}'."
         else
-            warn "Could not resolve tenant from domain '${UPN_DOMAIN}' — using default az tenant."
+            print_warning "Could not resolve tenant from domain '${UPN_DOMAIN}' — using default az tenant."
         fi
     fi
-    info "Acquiring Microsoft Graph token via az CLI..."
+    print_status "Acquiring Microsoft Graph token via az CLI..."
     GRAPH_TOKEN=$(az account get-access-token \
         --resource https://graph.microsoft.com \
         ${ENTRA_TENANT:+--tenant "$ENTRA_TENANT"} \
         --query accessToken -o tsv 2>/dev/null) || true
     if [[ -n "$GRAPH_TOKEN" ]]; then
         ENTRA_ENABLED=true
-        [[ -n "$ENTRA_TENANT" ]] && info "Graph token acquired (tenant: ${ENTRA_TENANT})." \
-                                  || info "Graph token acquired."
+        [[ -n "$ENTRA_TENANT" ]] && print_status "Graph token acquired (tenant: ${ENTRA_TENANT})." \
+                                  || print_status "Graph token acquired."
     else
-        warn "az is logged in but could not get a Graph token — department lookup disabled."
-        warn "Ensure your account has User.Read.All permission in the target tenant."
+        print_warning "az is logged in but could not get a Graph token — department lookup disabled."
+        print_warning "Ensure your account has User.Read.All permission in the target tenant."
         [[ -z "$ENTRA_TENANT" ]] && \
-            warn "If you have multiple tenants, try: --entra-tenant <TENANT_ID>"
+            print_warning "If you have multiple tenants, try: --entra-tenant <TENANT_ID>"
     fi
 else
-    warn "az CLI is not logged in — department/division grouping will be skipped."
-    warn "Run 'az login' to enable Entra ID enrichment, or pass --no-entra."
+    print_warning "az CLI is not logged in — department/division grouping will be skipped."
+    print_warning "Run 'az login' to enable Entra ID enrichment, or pass --no-entra."
 fi
 
 # ── GitHub API via curl with Copilot API version ──────────────────────────────
 # The Copilot usage-metrics endpoints require API version 2026-03-10.
-# Uses the same retry/rate-limit logic as lib's gh_api.
 _copilot_api() {
-    local url="$1"
-    shift
-    [[ "${url}" == http* ]] || url="${API_URL_PREFIX:-https://api.github.com}${url}"
-
-    local _attempt _http_code _body
-    for _attempt in 1 2 3 4 5; do
-        _body=$(curl -s -w "\n%{http_code}" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            "$@" "${url}")
-        _http_code=$(echo "${_body}" | tail -1)
-        _body=$(echo "${_body}" | sed '$d')
-        case "${_http_code}" in
-            200) echo "${_body}"; return 0 ;;
-            404) echo "__404__";  return 0 ;;
-            422) echo "__422__";  return 0 ;;
-            403|429)
-                warn "Rate limited (HTTP ${_http_code}). Sleeping 60s before retry ${_attempt}/5..."
-                sleep 60 ;;
-            *)
-                warn "HTTP ${_http_code} from GitHub API (attempt ${_attempt}/5)"
-                sleep 5 ;;
-        esac
-    done
-    err "Failed to reach ${url} after 5 attempts"
+    local url="$1"; shift
+    gh_api "${url}" --api-version 2026-03-10 "$@"
 }
 
 # fetch_usage_ndjson REPORT_PATH
@@ -314,7 +284,7 @@ graph_user_info() {
 }
 
 # ── Fetch seats ───────────────────────────────────────────────────────────────
-info "Fetching Copilot seats for enterprise '${GITHUB_ENTERPRISE}'..."
+print_status "Fetching Copilot seats for enterprise '${GITHUB_ENTERPRISE}'..."
 SEATS_RAW=$(fetch_seats "$GITHUB_ENTERPRISE")
 
 # The seats endpoint returns one entry per org per user — deduplicate by login,
@@ -329,7 +299,7 @@ SEATS=$(echo "$SEATS_RAW" | jq '
 ')
 
 SEAT_COUNT=$(echo "$SEATS" | jq 'length')
-info "Found ${SEAT_COUNT} unique licensed user(s)  ($(echo "$SEATS_RAW" | jq 'length') raw seat entries across orgs)."
+print_status "Found ${SEAT_COUNT} unique licensed user(s)  ($(echo "$SEATS_RAW" | jq 'length') raw seat entries across orgs)."
 # Enterprise seats endpoint has no total_seats field; use unique user count.
 TOTAL_ASSIGNED_SEATS=$SEAT_COUNT
 
@@ -339,7 +309,7 @@ TOTAL_ASSIGNED_SEATS=$SEAT_COUNT
 # Requires manage_billing:enterprise scope (classic/OAuth token; not fine-grained PATs).
 _BILLING_YEAR=$(date +%Y)
 _BILLING_MONTH=$(( 10#$(date +%m) ))   # strip leading zero (macOS compatible)
-info "Fetching per-user AI credit consumption (billing API, ${_BILLING_YEAR}-$(printf '%02d' $_BILLING_MONTH))..."
+print_status "Fetching per-user AI credit consumption (billing API, ${_BILLING_YEAR}-$(printf '%02d' $_BILLING_MONTH))..."
 declare -A USER_CREDITS_USED
 declare -A USER_MODEL_CREDITS   # key: "login|model"  value: credits
 declare -A _ALL_MODELS_SET      # keys are unique model names seen
@@ -377,12 +347,12 @@ done <<< "$_ALL_LOGINS"
 printf '\r%-60s\r' '' >&2   # clear progress line
 
 if [[ "$_billing_ok" == "true" ]]; then
-    info "Loaded billing data for ${#USER_CREDITS_USED[@]} user(s)."
+    print_status "Loaded billing data for ${#USER_CREDITS_USED[@]} user(s)."
 else
-    warn "Some billing API calls failed — credits may show 0 for affected users."
-    warn "Ensure manage_billing:enterprise scope: set GITHUB_TOKEN with the required scopes"
+    print_warning "Some billing API calls failed — credits may show 0 for affected users."
+    print_warning "Ensure manage_billing:enterprise scope: set GITHUB_TOKEN with the required scopes"
     [[ -n "$_billing_fail_statuses" ]] && \
-        warn "Failed users:${_billing_fail_statuses}"
+        print_warning "Failed users:${_billing_fail_statuses}"
 fi
 
 # Build sorted list of all model names seen across all users
@@ -392,7 +362,7 @@ while IFS= read -r _m; do
 done < <(printf '%s\n' "${!_ALL_MODELS_SET[@]}" | sort)
 
 # ── Fetch enterprise-level model usage (new usage metrics API, 28-day) ────────
-info "Fetching enterprise model usage metrics (last 28 days)..."
+print_status "Fetching enterprise model usage metrics (last 28 days)..."
 ENT_NDJSON=$(fetch_usage_ndjson \
     "/enterprises/${GITHUB_ENTERPRISE}/copilot/metrics/reports/enterprise-28-day/latest")
 
@@ -426,7 +396,7 @@ declare -A DEPT_CREDITS
 TOTAL_CREDITS=0
 
 # ── Process each seat ────────────────────────────────────────────────────────
-info "Enriching ${SEAT_COUNT} users with Entra ID info (this may take a moment)..."
+print_status "Enriching ${SEAT_COUNT} users with Entra ID info (this may take a moment)..."
 
 while IFS= read -r seat; do
     login=$(       echo "$seat" | jq -r '.assignee.login          // ""')

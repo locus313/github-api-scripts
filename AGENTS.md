@@ -140,12 +140,13 @@ Always use `SCRIPT_DIR` to build the path to `lib/github-common.sh`. The library
 | Function | Purpose |
 |----------|---------|
 | `print_status` / `print_success` / `print_warning` / `print_error` | Colored output |
+| `err <message>` | `print_error` + `exit 1` in one call |
 | `require_env_var <VAR>` | Exit with message if variable unset/empty |
 | `require_command <cmd>` | Exit if binary not in PATH |
 | `configure_gh_auth [scope_hint]` | Bridge GITHUB_TOKEN→GH_TOKEN or verify gh auth session |
 | `validate_github_token [bearer]` | Verify GITHUB_TOKEN via /user endpoint |
 | `validate_slug <value> <label>` | Reject values with non-alphanumeric/hyphen/underscore chars |
-| `gh_api <path> [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling; returns literal `__404__` or `__422__` for those HTTP statuses — callers must check for these sentinels |
+| `gh_api <path> [--api-version V] [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling; optional `--api-version` overrides the default `2022-11-28` header; returns literal `__404__` or `__422__` for those HTTP statuses — callers must check for these sentinels |
 | `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items; returns silently with empty output on 404/422 |
 | `get_enterprise_orgs` | Three-tier enterprise org resolver (REST → GraphQL → /user/orgs) |
 | `get_repo_page_count <url>` | Returns total pages for a paginated endpoint |

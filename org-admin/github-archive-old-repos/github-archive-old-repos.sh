@@ -50,35 +50,10 @@ cleanup() {
 trap cleanup EXIT
 
 ###
-## VALIDATION
-###
-validate_environment() {
-    print_status "Validating environment..."
-    require_env_var GITHUB_TOKEN "GitHub token"
-    require_env_var ORG "GitHub organization"
-    require_command jq
-    validate_github_token
-    print_success "Environment validation complete"
-}
-
-###
-## PAGINATION FUNCTIONS
-###
-get_repo_pagination() {
-    repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
-    echo "${repo_pages:-1}"
-}
-
-limit_repo_pagination() {
-    seq "$(get_repo_pagination)"
-}
-
-###
 ## DATE CALCULATION
 ###
 calculate_cutoff_date() {
-    # Calculate the cutoff date (5 years ago)
-    # Using 'date' command compatible with both GNU and BSD date
+    # Using 'date' compatible with both GNU (Linux) and BSD (macOS)
     if date -v-1d > /dev/null 2>&1; then
         # BSD date (macOS)
         CUTOFF_DATE=$(date -u -v-${YEARS_THRESHOLD}y +"%Y-%m-%dT%H:%M:%SZ")
@@ -95,73 +70,56 @@ calculate_cutoff_date() {
 fetch_old_repos() {
     local cutoff_date="$1"
     local total_old_repos=0
-    local PAGE
-    local REPOS
-    local REPO_NAME
-    local REPO_PAYLOAD
-    local REPO_FULLNAME
-    local REPO_PRIVATE
-    local REPO_ARCHIVED
-    local REPO_HTMLURL
-    local REPO_DESCRIPTION
-    local REPO_FORK
-    local REPO_UPDATEDAT
-    local UPDATED_EPOCH
-    local CURRENT_EPOCH
-    local DAYS_SINCE
-    local ESCAPED_DESC
-    
+
     print_status "Cutoff date: $cutoff_date (repos not updated since this date will be identified)"
     print_status "Fetching repositories from organization: $ORG"
-    
+
     # Initialize CSV with headers
     echo "name,full_name,private,archived,html_url,description,fork,last_updated,days_since_update" > "$REPORT_FILE"
-    
-    for PAGE in $(limit_repo_pagination); do
+
+    for PAGE in $(seq "$(get_repo_page_count "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100")"); do
         print_status "Processing page $PAGE..."
-        
+
+        local REPOS
         REPOS=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=updated&direction=asc")
-        
+
         while IFS= read -r REPO_NAME; do
             [ -z "${REPO_NAME}" ] && continue
+            local REPO_PAYLOAD
             REPO_PAYLOAD=$(echo "$REPOS" | jq -r --arg name "$REPO_NAME" '.[] | select(.name == $name)')
-            
-            REPO_FULLNAME=$(echo "$REPO_PAYLOAD" | jq -r .full_name)
-            REPO_PRIVATE=$(echo "$REPO_PAYLOAD" | jq -r .private)
+
+            local REPO_ARCHIVED REPO_UPDATEDAT
             REPO_ARCHIVED=$(echo "$REPO_PAYLOAD" | jq -r .archived)
-            REPO_HTMLURL=$(echo "$REPO_PAYLOAD" | jq -r .html_url)
-            REPO_DESCRIPTION=$(echo "$REPO_PAYLOAD" | jq -r .description)
-            REPO_FORK=$(echo "$REPO_PAYLOAD" | jq -r .fork)
             REPO_UPDATEDAT=$(echo "$REPO_PAYLOAD" | jq -r .updated_at)
-            
-            # Skip already archived repos
+
             if [ "$REPO_ARCHIVED" == "true" ]; then
                 continue
             fi
-            
-            # Compare dates
+
             if [[ "$REPO_UPDATEDAT" < "$cutoff_date" ]]; then
-                # Calculate days since last update
+                local UPDATED_EPOCH CURRENT_EPOCH DAYS_SINCE
                 if date -v-1d > /dev/null 2>&1; then
-                    # BSD date (macOS)
                     UPDATED_EPOCH=$(date -jf "%Y-%m-%dT%H:%M:%SZ" "$REPO_UPDATEDAT" +%s 2>/dev/null || echo "0")
                 else
-                    # GNU date (Linux)
                     UPDATED_EPOCH=$(date -d "$REPO_UPDATEDAT" +%s 2>/dev/null || echo "0")
                 fi
-                
                 CURRENT_EPOCH=$(date +%s)
                 DAYS_SINCE=$((($CURRENT_EPOCH - $UPDATED_EPOCH) / 86400))
-                
-                # Write to CSV (escape description for CSV)
+
+                local REPO_FULLNAME REPO_PRIVATE REPO_HTMLURL REPO_DESCRIPTION REPO_FORK ESCAPED_DESC
+                REPO_FULLNAME=$(echo "$REPO_PAYLOAD" | jq -r .full_name)
+                REPO_PRIVATE=$(echo "$REPO_PAYLOAD"  | jq -r .private)
+                REPO_HTMLURL=$(echo "$REPO_PAYLOAD"  | jq -r .html_url)
+                REPO_DESCRIPTION=$(echo "$REPO_PAYLOAD" | jq -r .description)
+                REPO_FORK=$(echo "$REPO_PAYLOAD"     | jq -r .fork)
                 ESCAPED_DESC=$(echo "$REPO_DESCRIPTION" | sed 's/"/""/g')
                 echo "${REPO_NAME},${REPO_FULLNAME},${REPO_PRIVATE},${REPO_ARCHIVED},${REPO_HTMLURL},\"${ESCAPED_DESC}\",${REPO_FORK},${REPO_UPDATEDAT},${DAYS_SINCE}" >> "$REPORT_FILE"
-                
+
                 total_old_repos=$((total_old_repos + 1))
             fi
         done < <(echo "$REPOS" | jq -r '.[] | .name')
     done
-    
+
     echo "$total_old_repos"
 }
 
@@ -260,8 +218,13 @@ prompt_for_archive() {
 main() {
     print_status "GitHub Old Repository Archival Tool"
     print_status "====================================="
-    
-    validate_environment
+
+    print_status "Validating environment..."
+    require_env_var GITHUB_TOKEN "GitHub token"
+    require_env_var ORG "GitHub organization"
+    require_command jq
+    validate_github_token
+    print_success "Environment validation complete"
     
     CUTOFF_DATE=$(calculate_cutoff_date)
     

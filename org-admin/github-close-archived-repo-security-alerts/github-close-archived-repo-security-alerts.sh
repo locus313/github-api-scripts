@@ -48,7 +48,7 @@ DEPENDABOT_REASON=${DEPENDABOT_REASON:-'tolerable_risk'}       # fix_started | i
 CODE_SCANNING_REASON=${CODE_SCANNING_REASON:-"won't fix"}      # false positive | won't fix | used in tests
 SECRET_SCANNING_RESOLUTION=${SECRET_SCANNING_RESOLUTION:-'wont_fix'}  # false_positive | wont_fix | revoked | used_in_tests
 
-ALERT_TYPE='all'   # default, can be overridden by --type flag
+ALERT_TYPE='all'
 DRY_RUN=false
 
 ###
@@ -181,93 +181,39 @@ get_all_pages() {
 }
 
 ###
-## CLOSE DEPENDABOT ALERTS
+## close_alerts <type> <repo> <summary_jq> <action> <payload>
+## Generic alert-closer: fetches all open alerts on the given type endpoint,
+## then dismisses/resolves each one.
+##   type        — endpoint segment and display label (dependabot, code-scanning, secret-scanning)
+##   repo        — repository name (without org prefix)
+##   summary_jq  — jq expression to extract a human-readable alert summary from one alert object
+##   action      — verb for messages and CSV (dismissed | resolved)
+##   payload     — pre-built JSON body for the PATCH request
 ###
-close_dependabot_alerts() {
-  local repo="$1"
-  print_status "[dependabot] Processing ${ORG}/${repo}..."
+close_alerts() {
+  local type="$1" repo="$2" summary_jq="$3" action="$4" payload="$5"
+  local base_path="/repos/${ORG}/${repo}/${type}/alerts"
 
-  local alerts
-  alerts=$(get_all_pages "${API_URL_PREFIX}/repos/${ORG}/${repo}/dependabot/alerts?state=open")
-
-  local count
+  print_status "[${type}] Processing ${ORG}/${repo}..."
+  local alerts count
+  alerts=$(get_all_pages "${API_URL_PREFIX}${base_path}?state=open")
   count=$(echo "${alerts}" | jq 'length')
 
   if [ "${count}" -eq 0 ]; then
-    print_status "[dependabot] No open alerts in ${repo}"
+    print_status "[${type}] No open alerts in ${repo}"
     return
   fi
-
-  print_status "[dependabot] Found ${count} open alert(s) in ${repo}"
+  print_status "[${type}] Found ${count} open alert(s) in ${repo}"
 
   for i in $(seq 0 $((count - 1))); do
     local alert_number summary
     alert_number=$(echo "${alerts}" | jq -r ".[${i}].number")
-    summary=$(echo "${alerts}" | jq -r ".[${i}].security_advisory.summary // \"N/A\"")
+    summary=$(echo "${alerts}" | jq -r ".[${i}] | ${summary_jq}")
 
     if [ "${DRY_RUN}" = true ]; then
-      print_warning "[DRY-RUN] Would dismiss dependabot alert #${alert_number} in ${ORG}/${repo}: ${summary}"
+      print_warning "[DRY-RUN] Would ${action} ${type} alert #${alert_number} in ${ORG}/${repo}: ${summary}"
       continue
     fi
-
-    local http_status _payload
-    _payload=$(jq -n \
-      --arg reason "${DEPENDABOT_REASON}" \
-      '{"state":"dismissed","dismissed_reason":$reason,"dismissed_comment":"Bulk dismissed by repository automation"}')
-    http_status=$(curl -s -o /dev/null -w "%{http_code}" \
-      -X PATCH \
-      -H "Authorization: token ${GITHUB_TOKEN}" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      -H "Content-Type: application/json" \
-      -d "${_payload}" \
-      "${API_URL_PREFIX}/repos/${ORG}/${repo}/dependabot/alerts/${alert_number}")
-
-    if [ "${http_status}" -eq 200 ]; then
-      print_success "[dependabot] Dismissed alert #${alert_number} in ${ORG}/${repo}"
-      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ"),${ORG},${repo},dependabot,${alert_number},\"${summary}\",dismissed" >> "${REPORT_FILE}"
-      TOTAL_CLOSED=$((TOTAL_CLOSED + 1))
-    else
-      print_error "[dependabot] Failed to dismiss alert #${alert_number} in ${ORG}/${repo} (HTTP ${http_status})"
-      TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
-    fi
-
-    sleep 0.2  # Respect rate limits
-  done
-}
-
-###
-## CLOSE CODE SCANNING ALERTS
-###
-close_code_scanning_alerts() {
-  local repo="$1"
-  print_status "[code-scanning] Processing ${ORG}/${repo}..."
-
-  local alerts
-  alerts=$(get_all_pages "${API_URL_PREFIX}/repos/${ORG}/${repo}/code-scanning/alerts?state=open")
-
-  local count
-  count=$(echo "${alerts}" | jq 'length')
-
-  if [ "${count}" -eq 0 ]; then
-    print_status "[code-scanning] No open alerts in ${repo}"
-    return
-  fi
-
-  print_status "[code-scanning] Found ${count} open alert(s) in ${repo}"
-
-  for i in $(seq 0 $((count - 1))); do
-    local alert_number summary
-    alert_number=$(echo "${alerts}" | jq -r ".[${i}].number")
-    summary=$(echo "${alerts}" | jq -r ".[${i}].rule.description // \"N/A\"")
-
-    if [ "${DRY_RUN}" = true ]; then
-      print_warning "[DRY-RUN] Would dismiss code-scanning alert #${alert_number} in ${ORG}/${repo}: ${summary}"
-      continue
-    fi
-
-    local dismissed_reason_json
-    dismissed_reason_json=$(printf '%s' "${CODE_SCANNING_REASON}" | jq -Rs '.')
 
     local http_status
     http_status=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -276,71 +222,15 @@ close_code_scanning_alerts() {
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       -H "Content-Type: application/json" \
-      -d "{\"state\":\"dismissed\",\"dismissed_reason\":${dismissed_reason_json},\"dismissed_comment\":\"Bulk dismissed by repository automation\"}" \
-      "${API_URL_PREFIX}/repos/${ORG}/${repo}/code-scanning/alerts/${alert_number}")
+      -d "${payload}" \
+      "${API_URL_PREFIX}${base_path}/${alert_number}")
 
     if [ "${http_status}" -eq 200 ]; then
-      print_success "[code-scanning] Dismissed alert #${alert_number} in ${ORG}/${repo}"
-      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ"),${ORG},${repo},code-scanning,${alert_number},\"${summary}\",dismissed" >> "${REPORT_FILE}"
+      print_success "[${type}] ${action^} alert #${alert_number} in ${ORG}/${repo}"
+      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ"),${ORG},${repo},${type},${alert_number},\"${summary}\",${action}" >> "${REPORT_FILE}"
       TOTAL_CLOSED=$((TOTAL_CLOSED + 1))
     else
-      print_error "[code-scanning] Failed to dismiss alert #${alert_number} in ${ORG}/${repo} (HTTP ${http_status})"
-      TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
-    fi
-
-    sleep 0.2
-  done
-}
-
-###
-## CLOSE SECRET SCANNING ALERTS
-###
-close_secret_scanning_alerts() {
-  local repo="$1"
-  print_status "[secret-scanning] Processing ${ORG}/${repo}..."
-
-  local alerts
-  alerts=$(get_all_pages "${API_URL_PREFIX}/repos/${ORG}/${repo}/secret-scanning/alerts?state=open")
-
-  local count
-  count=$(echo "${alerts}" | jq 'length')
-
-  if [ "${count}" -eq 0 ]; then
-    print_status "[secret-scanning] No open alerts in ${repo}"
-    return
-  fi
-
-  print_status "[secret-scanning] Found ${count} open alert(s) in ${repo}"
-
-  for i in $(seq 0 $((count - 1))); do
-    local alert_number secret_type
-    alert_number=$(echo "${alerts}" | jq -r ".[${i}].number")
-    secret_type=$(echo "${alerts}" | jq -r ".[${i}].secret_type_display_name // \"N/A\"")
-
-    if [ "${DRY_RUN}" = true ]; then
-      print_warning "[DRY-RUN] Would resolve secret-scanning alert #${alert_number} in ${ORG}/${repo}: ${secret_type}"
-      continue
-    fi
-
-    local http_status _payload
-    _payload=$(jq -n \
-      --arg resolution "${SECRET_SCANNING_RESOLUTION}" \
-      '{"state":"resolved","resolution":$resolution}')
-    http_status=$(curl -s -o /dev/null -w "%{http_code}" \
-      -X PATCH \
-      -H "Authorization: token ${GITHUB_TOKEN}" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      -H "Content-Type: application/json" \
-      -d "${_payload}" \
-      "${API_URL_PREFIX}/repos/${ORG}/${repo}/secret-scanning/alerts/${alert_number}")
-
-    if [ "${http_status}" -eq 200 ]; then
-      print_success "[secret-scanning] Resolved alert #${alert_number} in ${ORG}/${repo}"
-      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ"),${ORG},${repo},secret-scanning,${alert_number},\"${secret_type}\",resolved" >> "${REPORT_FILE}"
-      TOTAL_CLOSED=$((TOTAL_CLOSED + 1))
-    else
-      print_error "[secret-scanning] Failed to resolve alert #${alert_number} in ${ORG}/${repo} (HTTP ${http_status})"
+      print_error "[${type}] Failed to ${action} alert #${alert_number} in ${ORG}/${repo} (HTTP ${http_status})"
       TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
     fi
 
@@ -352,33 +242,7 @@ close_secret_scanning_alerts() {
 ## FETCH ARCHIVED REPOS IN ORG
 ###
 print_status "Fetching archived repositories in ${ORG}..."
-REPOS=()
-page=1
-
-while true; do
-  response=$(curl -s \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    -H "Accept: application/vnd.github+json" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    "${API_URL_PREFIX}/orgs/${ORG}/repos?type=all&per_page=100&page=${page}")
-
-  if echo "${response}" | jq -e '.message' &>/dev/null; then
-    print_error "Failed to fetch repositories: $(echo "${response}" | jq -r '.message')"
-    exit 1
-  fi
-
-  count=$(echo "${response}" | jq 'length')
-  if [ "${count}" -eq 0 ]; then
-    break
-  fi
-
-  while IFS= read -r repo; do
-    REPOS+=("${repo}")
-  done < <(echo "${response}" | jq -r '.[] | select(.archived == true) | .name')
-
-  page=$((page + 1))
-done
-
+mapfile -t REPOS < <(gh_api_paginate "/orgs/${ORG}/repos?type=all&per_page=100" '.[] | select(.archived == true) | .name')
 REPO_COUNT=${#REPOS[@]}
 print_success "Found ${REPO_COUNT} archived repositories"
 
@@ -390,21 +254,28 @@ echo ""
 ###
 ## MAIN LOOP — iterate over all repos
 ###
+_DEP_PAYLOAD=$(jq -n --arg r "${DEPENDABOT_REASON}" \
+  '{"state":"dismissed","dismissed_reason":$r,"dismissed_comment":"Bulk dismissed by repository automation"}')
+_CS_PAYLOAD=$(jq -n --arg r "${CODE_SCANNING_REASON}" \
+  '{"state":"dismissed","dismissed_reason":$r,"dismissed_comment":"Bulk dismissed by repository automation"}')
+_SS_PAYLOAD=$(jq -n --arg r "${SECRET_SCANNING_RESOLUTION}" \
+  '{"state":"resolved","resolution":$r}')
+
 for repo in "${REPOS[@]}"; do
   case "${ALERT_TYPE}" in
     dependabot)
-      close_dependabot_alerts "${repo}"
+      close_alerts "dependabot"     "${repo}" '.security_advisory.summary // "N/A"' "dismissed" "${_DEP_PAYLOAD}"
       ;;
     code-scanning)
-      close_code_scanning_alerts "${repo}"
+      close_alerts "code-scanning"  "${repo}" '.rule.description // "N/A"'          "dismissed" "${_CS_PAYLOAD}"
       ;;
     secret-scanning)
-      close_secret_scanning_alerts "${repo}"
+      close_alerts "secret-scanning" "${repo}" '.secret_type_display_name // "N/A"' "resolved"  "${_SS_PAYLOAD}"
       ;;
     all)
-      close_dependabot_alerts "${repo}"
-      close_code_scanning_alerts "${repo}"
-      close_secret_scanning_alerts "${repo}"
+      close_alerts "dependabot"     "${repo}" '.security_advisory.summary // "N/A"' "dismissed" "${_DEP_PAYLOAD}"
+      close_alerts "code-scanning"  "${repo}" '.rule.description // "N/A"'          "dismissed" "${_CS_PAYLOAD}"
+      close_alerts "secret-scanning" "${repo}" '.secret_type_display_name // "N/A"' "resolved"  "${_SS_PAYLOAD}"
       ;;
   esac
   echo ""

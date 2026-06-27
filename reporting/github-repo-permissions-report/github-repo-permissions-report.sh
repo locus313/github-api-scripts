@@ -51,9 +51,6 @@ Examples:
 EOF
 }
 
-err()  { print_error  "$*"; exit 1; }
-info() { print_status "$*"; }
-
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -r|--repo)
@@ -95,7 +92,7 @@ BP_JSON="${TMP_DIR}/branch_protection.json"
 RULESETS_JSON="${TMP_DIR}/rulesets.json"
 BYPASS_JSON="${TMP_DIR}/bypass.json"
 
-info "Fetching repository metadata for ${REPO}..."
+print_status "Fetching repository metadata for ${REPO}..."
 _repo_resp=$(gh_api "/repos/${REPO}")
 [[ "${_repo_resp}" == "__404__" ]] && err "Repository ${REPO} not found or not accessible"
 echo "${_repo_resp}" > "$REPO_JSON"
@@ -110,15 +107,15 @@ if [[ -z "$OUTPUT_CSV" ]]; then
   OUTPUT_CSV="${REPO//\//-}-permissions-${BRANCH}-$(date +%Y%m%d).csv"
 fi
 
-info "Fetching collaborators..."
+print_status "Fetching collaborators..."
 gh_api_paginate "/repos/${REPO}/collaborators?affiliation=all&per_page=100" '.[]' \
   | jq -s '.' > "$COLLAB_JSON"
 
-info "Fetching teams with repository access..."
+print_status "Fetching teams with repository access..."
 gh_api_paginate "/repos/${REPO}/teams?per_page=100" '.[]' \
   | jq -s '.' > "$TEAMS_JSON"
 
-info "Fetching branch protection for ${BRANCH} (if configured)..."
+print_status "Fetching branch protection for ${BRANCH} (if configured)..."
 _bp_resp=$(gh_api "/repos/${REPO}/branches/${BRANCH}/protection")
 if [[ "${_bp_resp}" == "__404__" || "${_bp_resp}" == "__422__" ]]; then
   echo '{}' > "$BP_JSON"
@@ -126,11 +123,11 @@ else
   echo "${_bp_resp}" > "$BP_JSON"
 fi
 
-info "Fetching repository rulesets (if configured)..."
+print_status "Fetching repository rulesets (if configured)..."
 gh_api_paginate "/repos/${REPO}/rulesets?includes_parents=true&per_page=100" '.[]' \
   | jq -s '. // []' > "$RULESETS_JSON"
 
-info "Building bypass actor list (branch protection + applicable rulesets)..."
+print_status "Building bypass actor list (branch protection + applicable rulesets)..."
 jq -n \
   --argjson bp "$(cat "$BP_JSON")" \
   --argjson rulesets "$(cat "$RULESETS_JSON")" \
@@ -223,7 +220,7 @@ jq -n \
   ]
 ' > "$BYPASS_JSON"
 
-info "Normalizing team references in bypass data..."
+print_status "Normalizing team references in bypass data..."
 jq -n \
   --argjson bypass "$(cat "$BYPASS_JSON")" \
   --argjson teams "$(cat "$TEAMS_JSON")" '
@@ -242,7 +239,7 @@ jq -n \
 ' > "$BYPASS_JSON.tmp"
 mv "$BYPASS_JSON.tmp" "$BYPASS_JSON"
 
-info "Generating CSV report: ${OUTPUT_CSV}"
+print_status "Generating CSV report: ${OUTPUT_CSV}"
 jq -r -n \
   --arg repo "$REPO" \
   --arg branch "$BRANCH" \

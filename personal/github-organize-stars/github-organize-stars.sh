@@ -30,14 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
-# ---- Dependency check -------------------------------------------------------
-for cmd in gh jq; do
-  if ! command -v "$cmd" &>/dev/null; then
-    echo "ERROR: '$cmd' is required but not installed." >&2
-    [[ "$cmd" == "jq" ]] && echo "  Install: sudo dnf install -y jq" >&2
-    exit 1
-  fi
-done
+require_command jq
 
 # ---- Defaults ---------------------------------------------------------------
 DRY_RUN=false

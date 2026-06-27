@@ -32,11 +32,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/github-common.sh
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
-# Redirect status output to stderr — stdout is reserved for CSV data
-print_status()  { echo -e "${BLUE}[INFO]${NC}    $1" >&2; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1" >&2; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1" >&2; }
-print_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
 
 ###
 ## GLOBAL VARIABLES
@@ -67,60 +62,6 @@ cleanup() {
   rm -rf "${TEMP_DIR}"
 }
 trap cleanup EXIT
-
-###
-## Prerequisite checks
-###
-check_prerequisites() {
-  print_status "Checking prerequisites..."
-  require_command curl
-  require_command jq
-  require_command base64
-  require_env_var GITHUB_TOKEN "GITHUB_TOKEN"
-  print_success "Prerequisites OK"
-}
-
-###
-## gh_api_link – like gh_api but also returns the Link header for pagination
-## Writes body to stdout, sets global RESPONSE_LINK
-###
-RESPONSE_LINK=""
-gh_api_link() {
-  local url="$1"
-  shift
-  [[ "${url}" == http* ]] || url="${API_URL_PREFIX}${url}"
-
-  local attempt
-  for attempt in 1 2 3 4 5; do
-    local response
-    response=$(curl -s -D - \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "$@" "${url}")
-
-    local http_code
-    http_code=$(echo "${response}" | head -1 | grep -oE '[0-9]{3}' | head -1)
-    RESPONSE_LINK=$(echo "${response}" | grep -i '^Link:' | tr -d '\r' | sed 's/Link: //' || true)
-    local body
-    body=$(echo "${response}" | awk 'BEGIN{p=0} /^\r?$/{p=1; next} p{print}')
-
-    if [[ "${http_code}" == "200" ]]; then
-      echo "${body}"
-      return 0
-    elif [[ "${http_code}" == "403" || "${http_code}" == "429" ]]; then
-      local retry_after=60
-      print_warning "Rate limited (HTTP ${http_code}). Sleeping ${retry_after}s..."
-      sleep "${retry_after}"
-    else
-      print_warning "HTTP ${http_code} for ${url} (attempt ${attempt}/5)"
-      sleep 5
-    fi
-  done
-
-  print_error "Failed to GET ${url} after 5 attempts"
-  return 1
-}
 
 ###
 ## search_dockerfiles_in_org <org>
@@ -383,7 +324,10 @@ build_text_summary() {
 ## MAIN
 ###
 main() {
-  check_prerequisites
+  require_command curl
+  require_command jq
+  require_command base64
+  require_env_var GITHUB_TOKEN "GITHUB_TOKEN"
   validate_github_token
 
   mkdir -p "${REPORT_DIR}"
