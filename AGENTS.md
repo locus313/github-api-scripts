@@ -261,7 +261,7 @@ All commits **must** follow [Conventional Commits](https://www.conventionalcommi
 | `feat!:` / `BREAKING CHANGE:` | major | ✅ |
 | `chore:` | none | hidden |
 | `ci:` | none | hidden |
-| `refactor:` | none | hidden |
+| `refactor:` | patch | Code Refactoring |
 | `test:` | none | hidden |
 
 ---

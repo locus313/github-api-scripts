@@ -267,7 +267,7 @@ All commits **must** follow [Conventional Commits](https://www.conventionalcommi
 | `docs:` | patch bump (visible) | `docs: update GitHub Actions examples in README` |
 | `chore:` | no bump (hidden) | `chore: update actions/checkout to v7` |
 | `ci:` | no bump (hidden) | `ci: pin release-please-action SHA` |
-| `refactor:` | no bump (hidden) | `refactor: extract pagination helper` |
+| `refactor:` | patch | `refactor: extract pagination helper` |
 
 ### Variable Naming Conventions
 - `GITHUB_TOKEN` — main admin token
