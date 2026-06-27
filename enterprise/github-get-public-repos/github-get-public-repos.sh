@@ -33,7 +33,6 @@ source "${SCRIPT_DIR}/../../lib/github-common.sh"
 print_status()  { echo -e "${BLUE}[INFO]${NC}    $1" >&2; }
 print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1" >&2; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1" >&2; }
-print_error()   { echo -e "${RED}[ERROR]${NC}   $1" >&2; }
 
 ###
 ## GLOBAL VARIABLES
@@ -59,17 +58,6 @@ cleanup() {
   rm -rf "${TEMP_DIR}"
 }
 trap cleanup EXIT
-
-###
-## Prerequisite checks
-###
-check_prerequisites() {
-  print_status "Checking prerequisites..."
-  require_command curl
-  require_command jq
-  require_env_var GITHUB_TOKEN "GITHUB_TOKEN"
-  print_success "Prerequisites OK"
-}
 
 ###
 ## resolve_orgs
@@ -186,7 +174,9 @@ get_public_repos_for_org() {
 ## Main
 ###
 main() {
-  check_prerequisites
+  require_command curl
+  require_command jq
+  require_env_var GITHUB_TOKEN "GITHUB_TOKEN"
   validate_github_token
 
   mkdir -p "${REPORT_DIR}"

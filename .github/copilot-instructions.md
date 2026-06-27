@@ -23,6 +23,19 @@ Each script follows the `github-<script-name>/github-<script-name>.sh` naming co
 
 Provides reusable helpers sourced by scripts:
 
+| Function | Purpose |
+|----------|---------|
+| `print_status` / `print_success` / `print_warning` / `print_error` | Colored output |
+| `err <message>` | `print_error` + `exit 1` in one call |
+| `require_env_var <VAR>` | Exit with message if variable unset/empty |
+| `require_command <cmd>` | Exit if binary not in PATH |
+| `configure_gh_auth [scope_hint]` | Bridge GITHUB_TOKEN→GH_TOKEN or verify gh auth session |
+| `validate_github_token [bearer]` | Verify GITHUB_TOKEN via /user endpoint |
+| `validate_slug <value> <label>` | Reject values with non-alphanumeric/hyphen/underscore chars |
+| `gh_api <path> [--api-version V] [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling; optional `--api-version` overrides the default `2022-11-28` header; returns literal `__404__` or `__422__` for those HTTP statuses — callers must check for these sentinels |
+| `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items; returns silently with empty output on 404/422 |
+| `get_enterprise_orgs` | Three-tier enterprise org resolver (REST → GraphQL → /user/orgs) |
+| `get_repo_page_count <url>` | Returns total pages for a paginated endpoint |
 
 ### Script Anatomy (Standardized Pattern)
 
@@ -84,12 +97,7 @@ API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 
 For org-level repo iteration (REST):
 ```bash
-get_repo_pagination () {
-    repo_pages=$(curl -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
-    echo "${repo_pages:-1}"
-}
-
-for PAGE in $(seq "$(get_repo_pagination)"); do
+for PAGE in $(seq "$(get_repo_page_count "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100")"); do
   # Process repos on this page with per_page=100
 done
 ```
@@ -101,7 +109,7 @@ For enterprise-level org iteration (GraphQL), use cursor-based pagination — se
 Rate limiting delays are calibrated per operation type:
 - **Repo-level operations** (permission grants, archival): `sleep 5` between each repository.
 - **Code search** (`github-dockerfile-discovery`): configurable via `SEARCH_SLEEP` (default 2 s) and `CONTENT_SLEEP` (default 1 s).
-- **gh_api helper** (lib): auto-retries up to 5 times on HTTP 403/429, sleeping 60 s before each retry. Returns the literal string `__404__` or `__422__` (exit 0) for those HTTP statuses instead of failing — every caller must check for these sentinels before passing the result to `jq`. `gh_api_paginate` returns silently with empty output on 404/422.
+- **gh_api helper** (lib): auto-retries up to 5 times on HTTP 403/429, sleeping 60 s before each retry. Pass `--api-version VERSION` immediately after the URL to override the default `2022-11-28` header. Returns the literal string `__404__` or `__422__` (exit 0) for those HTTP statuses instead of failing — every caller must check for these sentinels before passing the result to `jq`. `gh_api_paginate` returns silently with empty output on 404/422.
 
 ### Authentication Headers
 

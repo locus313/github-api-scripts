@@ -67,17 +67,8 @@ ISSUES_TEMP=$(mktemp)
 trap 'rm -f "${ISSUES_TEMP}"' EXIT
 mkdir -p "${REPORT_DIR}"
 
-get_issue_pagination () {
-    issue_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
-    echo "${issue_pages:-1}"
-}
-
-limit_issue_pagination () {
-  seq "$(get_issue_pagination)"
-}
-
 repo_issues () {
-  for PAGE in $(limit_issue_pagination); do
+  for PAGE in $(seq "$(get_repo_page_count "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues?state=all&labels=Linked%20[AC]&per_page=100")"); do
     while IFS= read -r i; do
       [ -z "${i}" ] && continue
       ISSUE_PAYLOAD=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/repos/${ORG}/${REPO}/issues/${i}" -H "Accept: application/vnd.github.mercy-preview+json")

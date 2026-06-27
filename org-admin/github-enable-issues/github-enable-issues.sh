@@ -76,26 +76,9 @@ if [ "${DRY_RUN}" = true ]; then
 fi
 
 ###
-## PAGINATION HELPER
-## Returns the total number of pages for the org's full repo list.
-###
-get_repo_pagination() {
-  local pages
-  pages=$(curl -s -I \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    -H "Accept: application/vnd.github.v3+json" \
-    "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" \
-    | grep -i '^link:' \
-    | grep -Eo 'page=[0-9]+' \
-    | grep -Eo '[0-9]+' \
-    | tail -1)
-  echo "${pages:-1}"
-}
-
-###
 ## MAIN LOGIC
 ###
-TOTAL_PAGES=$(get_repo_pagination)
+TOTAL_PAGES=$(get_repo_page_count "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100")
 print_status "Total pages of repos: ${TOTAL_PAGES}"
 
 COUNT_UPDATED=0

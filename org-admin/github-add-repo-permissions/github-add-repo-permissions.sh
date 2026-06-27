@@ -70,15 +70,6 @@ if [ -n "${REPO_NAME_FILTER}" ]; then
   print_status "Repository filter: ${REPO_NAME_FILTER}*"
 fi
 
-get_repo_pagination () {
-    repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1;)
-    echo "${repo_pages:-1}"
-}
-
-limit_repo_pagination () {
-  seq "$(get_repo_pagination)"
-}
-
 apply_team_permissions () {
   local REPO_NAME=$1
   local PERMISSION=$2
@@ -107,7 +98,7 @@ process_repos () {
   local REPO
   local repos_json
 
-  for PAGE in $(limit_repo_pagination); do
+  for PAGE in $(seq "$(get_repo_page_count "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100")"); do
     repos_json=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "${API_URL_PREFIX}/orgs/${ORG}/repos?page=${PAGE}&per_page=100&sort=full_name")
 
     if ! echo "${repos_json}" | jq -e 'type == "array"' > /dev/null 2>&1; then

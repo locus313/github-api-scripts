@@ -51,16 +51,6 @@ usage() {
   echo "Optional: PERMISSION=push REPO_EXCLUDE_REGEX=<regex> API_URL_PREFIX=<url>"
 }
 
-get_repo_pagination() {
-  local repo_pages
-  repo_pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100" | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1)
-  echo "${repo_pages:-1}"
-}
-
-limit_repo_pagination() {
-  seq "$(get_repo_pagination)"
-}
-
 validate() {
   require_env_var GITHUB_TOKEN "GitHub token"
   require_env_var ORG "GitHub organization"
@@ -79,7 +69,7 @@ validate() {
 
 get_matching_repos() {
   local page repos_json
-  for page in $(limit_repo_pagination); do
+  for page in $(seq "$(get_repo_page_count "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100")"); do
     repos_json=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/json" "${API_URL_PREFIX}/orgs/${ORG}/repos?type=all&per_page=100&page=${page}&sort=full_name")
 
     if [ -n "${REPO_EXCLUDE_REGEX}" ]; then

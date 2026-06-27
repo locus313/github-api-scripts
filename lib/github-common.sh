@@ -18,7 +18,7 @@
 #   validate_github_token [bearer]            — verify GITHUB_TOKEN via /user endpoint
 #   validate_token <VAR_NAME>                 — verify a secondary token variable
 #   validate_slug <value> [label]             — exit if value contains unsafe chars
-#   gh_api <path|url> [curl args...]          — Bearer-auth REST helper with retry;
+#   gh_api <path|url> [--api-version V] [curl args…] — Bearer-auth REST helper with retry;
 #                                               returns "__404__"/"__422__" (exit 0) for those codes
 #   gh_api_paginate <path> [filter] [version] — paginated REST, follows Link headers;
 #                                               silently returns empty output on 404/422
@@ -50,6 +50,7 @@ print_status()  { echo -e "${BLUE}[INFO]${NC} $1"; }
 print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+err()           { print_error "$*"; exit 1; }
 
 ###
 ## require_env_var <VAR_NAME> [description]
@@ -167,15 +168,21 @@ validate_slug() {
 }
 
 ###
-## gh_api <path_or_full_url> [extra curl args...]
+## gh_api <path_or_full_url> [--api-version VERSION] [extra curl args...]
 ## GitHub REST/GraphQL API helper with Bearer auth and rate-limit retries.
 ## Prepends API_URL_PREFIX when the first argument starts with /.
 ## Returns __404__ / __422__ for those status codes rather than failing.
-## Any extra arguments after the URL are passed directly to curl (e.g. -X POST -d ...).
+## Pass --api-version VERSION immediately after the URL to override the default
+## API version (2022-11-28). Any remaining arguments are passed to curl.
 ###
 gh_api() {
   local url="$1"
+  local api_version="2022-11-28"
   shift
+  if [[ "${1:-}" == "--api-version" ]]; then
+    api_version="$2"
+    shift 2
+  fi
   [[ "${url}" == http* ]] || url="${API_URL_PREFIX}${url}"
 
   local attempt
@@ -184,7 +191,7 @@ gh_api() {
     body=$(curl -s -w "\n%{http_code}" \
       -H "Authorization: Bearer ${GITHUB_TOKEN}" \
       -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -H "X-GitHub-Api-Version: ${api_version}" \
       "$@" "${url}")
     http_code=$(echo "${body}" | tail -1)
     body=$(echo "${body}" | sed '$d')

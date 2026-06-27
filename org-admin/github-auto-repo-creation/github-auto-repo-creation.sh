@@ -33,13 +33,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 ###
-## GLOBAL VARIABLES - Set default values for the required environment variables
+## GLOBAL VARIABLES
 ###
 GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 
-# Set default values for repository names and admin teams and code owners
 REPO_NAMES=${REPO_NAMES:-''}
 ADMIN_TEAMS=${ADMIN_TEAMS:-''}
 REPO_OWNERS=${REPO_OWNERS:-''}
@@ -85,7 +84,6 @@ CODEOWNERS_CONTENT=$(cat << EOF
 EOF
 )
 
-# Function to create a new GitHub repository
 create_github_repo() {
   local repo_name="$1"
   local _payload
@@ -98,7 +96,6 @@ create_github_repo() {
     -d "${_payload}"
 }
 
-# Function to enable branch protection on the main branch
 enable_branch_protection() {
   local repo_name=$1
   curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/repos/${ORG}/${repo_name}/branches/main/protection" -d "{
@@ -113,7 +110,6 @@ enable_branch_protection() {
   }"
 }
 
-# Function to create a CODEOWNERS file in the repository
 create_codeowners_file() {
   local repo_name=$1
   curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/repos/${ORG}/${repo_name}/contents/.github/CODEOWNERS" -d "{
@@ -122,25 +118,15 @@ create_codeowners_file() {
   }"
 }
 
-# Function to add a team with admin permissions to the repository
-add_teams_to_repo() {
+# Function to add a team with a given permission to the repository
+add_team_to_repo() {
   local repo_name=$1
   local team_name=$2
+  local permission=$3
   validate_slug "${repo_name}" "repository name"
   validate_slug "${team_name}" "team name"
   curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${team_name}/repos/${ORG}/${repo_name}" -d "{
-    \"permission\": \"admin\"
-  }"
-}
-
-# Function to add a team with write permissions to the repository
-add_repo_owners_to_repo() {
-  local repo_name=$1
-  local team_name=$2
-  validate_slug "${repo_name}" "repository name"
-  validate_slug "${team_name}" "team name"
-  curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "${API_URL_PREFIX}/orgs/${ORG}/teams/${team_name}/repos/${ORG}/${repo_name}" -d "{
-    \"permission\": \"push\"
+    \"permission\": \"${permission}\"
   }"
 }
 
@@ -149,7 +135,6 @@ mapfile -t REPO_NAMES  < <(tr ',' '\n' <<< "${REPO_NAMES}")
 mapfile -t ADMIN_TEAMS < <(tr ',' '\n' <<< "${ADMIN_TEAMS:-}")
 mapfile -t REPO_OWNERS < <(tr ',' '\n' <<< "${REPO_OWNERS}")
 
-# Loop through each repository and perform the required actions
 for repo_name in "${REPO_NAMES[@]}"; do
   echo "Creating repository ${repo_name}"
   create_github_repo "${repo_name}"
@@ -163,14 +148,14 @@ for repo_name in "${REPO_NAMES[@]}"; do
   # Add each admin team to the repository
   for team_name in "${ADMIN_TEAMS[@]}"; do
     echo "Adding team ${team_name} as admin to ${repo_name}"
-    add_teams_to_repo "${repo_name}" "${team_name}"
+    add_team_to_repo "${repo_name}" "${team_name}" "admin"
   done
 
     # Add each repo owner team to the repository with write permissions, but only if it's not an admin team
   for team_name in "${REPO_OWNERS[@]}"; do
     if [[ ! "${ADMIN_TEAMS[*]}" =~ ${team_name} ]]; then
       echo "Adding team ${team_name} as a repo owner (write permission) to ${repo_name}"
-      add_repo_owners_to_repo "${repo_name}" "${team_name}"
+      add_team_to_repo "${repo_name}" "${team_name}" "push"
     fi
   done
 done
