@@ -227,7 +227,8 @@ Uses API version `2026-03-10` and the new usage-metrics NDJSON endpoints (signed
 3. Source `lib/github-common.sh` for validation and output helpers
 4. Start with the standard boilerplate (see Script Anatomy above)
 5. Create `action.yml` in the same directory — expose every env var as a named input (required inputs without defaults, optional inputs with sensible defaults); map CLI flags such as `--dry-run` and `--type` to boolean/string inputs and build an `ARGS` array in the `run:` step. Mirror the pattern of any existing `action.yml`.
-6. Document in README.md following existing format:
+6. **Add tests to `tests/test_script_validation.bats`** — mandatory. Add a labelled section with tests for every required env var missing (exit 1), unknown CLI args (exit 1), `--help` exits 0, and script-specific validation guards. See existing sections for the pattern.
+7. Document in README.md following existing format:
    - Use case description
    - Required variables table
    - Usage example with exports
@@ -235,7 +236,24 @@ Uses API version `2026-03-10` and the new usage-metrics NDJSON endpoints (signed
    - Add a row to the Available Actions table in the "Using Scripts in GitHub Actions" section
 
 ### Testing Approach
-- **Always test on a test organization first**
+
+The project has a bats unit-test suite in `tests/`. Run the full suite with:
+
+```bash
+bats tests/
+```
+
+| File | What it covers |
+|------|----------------|
+| `tests/test_common.bats` | `lib/github-common.sh` pure-logic functions and API helpers |
+| `tests/test_script_validation.bats` | Every script — missing env vars, invalid args, `--help`, script-specific guards |
+| `tests/mock_curl.sh` | Universal curl mock used by both test files |
+
+Every new script **must** include a test section in `tests/test_script_validation.bats` before it is merged. At minimum test: each required env var missing exits 1, unknown CLI args exit 1, and any enum or allowlist validation specific to the script.
+
+Additional testing approaches:
+- **Always test on a test organization first** before running against production
+- **Dry-run flags** — several scripts support `--dry-run` to preview changes without applying them
 
 ### Commit Messages — Conventional Commits (required)
 
@@ -285,7 +303,7 @@ When you change one of these files, you must also update the files in the "Also 
 | `README.md` — script documentation | Verify the script's `# ===` header comment still matches (env vars, options, requirements) |
 | `.githooks/pre-commit` | `install-hooks.sh` if hook path or installation instructions change; README.md Best Practices section |
 | `install-hooks.sh` | README.md Installation section |
-| Add a new script | `action.yml` in the same directory; `README.md` (add use case, env var table, usage example, Available Actions table row) |
+| Add a new script | `tests/test_script_validation.bats` (add a test section for the new script); `action.yml` in the same directory; `README.md` (add use case, env var table, usage example, Available Actions table row) |
 | Add a new domain folder | `README.md` top-level structure description; `AGENTS.md` Repository Structure section |
 | `.github/workflows/ci.yml` — shellcheck flags | `.githooks/pre-commit` shellcheck invocation (keep them in sync) |
 | `.github/workflows/copilot-setup-steps.yml` — tool versions | `AGENTS.md` Tech Stack table |
