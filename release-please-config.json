@@ -16,7 +16,7 @@
     {"type": "deps",     "section": "Dependencies"},
     {"type": "chore",    "section": "Miscellaneous", "hidden": true},
     {"type": "style",    "section": "Miscellaneous", "hidden": true},
-    {"type": "refactor", "section": "Miscellaneous", "hidden": true},
+    {"type": "refactor", "section": "Code Refactoring"},
     {"type": "test",     "section": "Miscellaneous", "hidden": true},
     {"type": "build",    "section": "Miscellaneous", "hidden": true},
     {"type": "ci",       "section": "Miscellaneous", "hidden": true}
