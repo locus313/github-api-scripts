@@ -44,27 +44,35 @@ _mock_curl_200() {
   chmod +x "$MOCK_BIN/curl"
 }
 
+# Run SCRIPT with MOCK_BIN prepended to PATH and an optional shell preamble.
+# $1 = script path, $2 = preamble (env/unset shell statements, optional)
+# $3 = script CLI arguments (optional)
+_run_script() {
+  local script="$1" preamble="${2:-}" args="${3:-}"
+  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; ${preamble} bash '${script}' ${args}"
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # org-admin/github-add-repo-collaborators-by-pattern
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-add-repo-collaborators-by-pattern: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-add-repo-collaborators-by-pattern: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-add-repo-collaborators-by-pattern: exits 1 when COLLABORATORS is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; unset COLLABORATORS; bash '${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh" "export GITHUB_TOKEN=fake; export ORG=test; unset COLLABORATORS;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-add-repo-collaborators-by-pattern: exits 1 when REPO_NAME_REGEX is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; export COLLABORATORS=user1; unset REPO_NAME_REGEX; bash '${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-collaborators-by-pattern/github-add-repo-collaborators-by-pattern.sh" "export GITHUB_TOKEN=fake; export ORG=test; export COLLABORATORS=user1; unset REPO_NAME_REGEX;"
   [ "$status" -eq 1 ]
 }
 
@@ -73,12 +81,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-add-repo-permissions: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-add-repo-permissions: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
@@ -87,12 +95,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-archive-old-repos: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-archive-old-repos/github-archive-old-repos.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-archive-old-repos/github-archive-old-repos.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-archive-old-repos: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-archive-old-repos/github-archive-old-repos.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-archive-old-repos/github-archive-old-repos.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
@@ -101,22 +109,22 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-auto-repo-creation: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-auto-repo-creation: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-auto-repo-creation: exits 1 when REPO_NAMES is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; unset REPO_NAMES; bash '${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh" "export GITHUB_TOKEN=fake; export ORG=test; unset REPO_NAMES;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-auto-repo-creation: exits 1 when REPO_OWNERS is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; export REPO_NAMES=my-repo; unset REPO_OWNERS; bash '${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-auto-repo-creation/github-auto-repo-creation.sh" "export GITHUB_TOKEN=fake; export ORG=test; export REPO_NAMES=my-repo; unset REPO_OWNERS;"
   [ "$status" -eq 1 ]
 }
 
@@ -125,41 +133,41 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-close-archived-repo-security-alerts: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-close-archived-repo-security-alerts: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-close-archived-repo-security-alerts: exits 1 for unknown argument" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh' --garbage"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "unset GITHUB_TOKEN;" "--garbage"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Unknown argument"* ]]
 }
 
 @test "github-close-archived-repo-security-alerts: exits 1 for invalid --type value" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh' --type badtype"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "unset GITHUB_TOKEN;" "--type badtype"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Invalid --type"* ]]
 }
 
 @test "github-close-archived-repo-security-alerts: --dry-run is recognised (fails at token check)" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh' --dry-run"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "unset GITHUB_TOKEN;" "--dry-run"
   [ "$status" -eq 1 ]
   [[ "$output" != *"Unknown argument"* ]]
 }
 
 @test "github-close-archived-repo-security-alerts: exits 1 for invalid DEPENDABOT_REASON" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export DEPENDABOT_REASON=bad-value; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "export DEPENDABOT_REASON=bad-value; unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Invalid DEPENDABOT_REASON"* ]]
 }
 
 @test "github-close-archived-repo-security-alerts: exits 1 for invalid SECRET_SCANNING_RESOLUTION" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export SECRET_SCANNING_RESOLUTION=bad-value; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-close-archived-repo-security-alerts/github-close-archived-repo-security-alerts.sh" "export SECRET_SCANNING_RESOLUTION=bad-value; unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Invalid SECRET_SCANNING_RESOLUTION"* ]]
 }
@@ -169,28 +177,28 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-enable-issues: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-enable-issues: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-enable-issues: --help exits 0" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; bash '${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh' --help"
+  _run_script "${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh" "" "--help"
   [ "$status" -eq 0 ]
 }
 
 @test "github-enable-issues: exits 1 for unknown argument" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh' --garbage"
+  _run_script "${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh" "unset GITHUB_TOKEN;" "--garbage"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Unknown argument"* ]]
 }
 
 @test "github-enable-issues: --dry-run is recognised (fails at token check)" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh' --dry-run"
+  _run_script "${REPO_ROOT}/org-admin/github-enable-issues/github-enable-issues.sh" "unset GITHUB_TOKEN;" "--dry-run"
   [ "$status" -eq 1 ]
   [[ "$output" != *"Unknown argument"* ]]
 }
@@ -200,12 +208,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-get-repo-list: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-get-repo-list/github-get-repo-list.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-get-repo-list/github-get-repo-list.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-get-repo-list: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-get-repo-list/github-get-repo-list.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-get-repo-list/github-get-repo-list.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
@@ -214,12 +222,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-import-repo: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-import-repo/github-import-repo.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-import-repo/github-import-repo.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-import-repo: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-import-repo/github-import-repo.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-import-repo/github-import-repo.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
@@ -259,12 +267,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-migrate-internal-repos-to-private: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-migrate-internal-repos-to-private/github-migrate-internal-repos-to-private.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-migrate-internal-repos-to-private/github-migrate-internal-repos-to-private.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-migrate-internal-repos-to-private: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-migrate-internal-repos-to-private/github-migrate-internal-repos-to-private.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-migrate-internal-repos-to-private/github-migrate-internal-repos-to-private.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
@@ -273,22 +281,22 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-repo-from-template: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-repo-from-template: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-repo-from-template: exits 1 when TEMPLATE_REPO is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; unset TEMPLATE_REPO; bash '${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh" "export GITHUB_TOKEN=fake; export ORG=test; unset TEMPLATE_REPO;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-repo-from-template: exits 1 when CD_USERNAME is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; export TEMPLATE_REPO=my-template; unset CD_USERNAME; bash '${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh'"
+  _run_script "${REPO_ROOT}/org-admin/github-repo-from-template/github-repo-from-template.sh" "export GITHUB_TOKEN=fake; export ORG=test; export TEMPLATE_REPO=my-template; unset CD_USERNAME;"
   [ "$status" -eq 1 ]
 }
 
@@ -314,17 +322,17 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-add-enterprise-team-read-permissions: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-add-enterprise-team-read-permissions: exits 1 when ENTERPRISE is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ENTERPRISE; bash '${REPO_ROOT}/enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh" "export GITHUB_TOKEN=fake; unset ENTERPRISE;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-add-enterprise-team-read-permissions: exits 1 when ENTERPRISE_TEAM_SLUG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ENTERPRISE=my-ent; unset ENTERPRISE_TEAM_SLUG; bash '${REPO_ROOT}/enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-add-enterprise-team-read-permissions/github-add-enterprise-team-read-permissions.sh" "export GITHUB_TOKEN=fake; export ENTERPRISE=my-ent; unset ENTERPRISE_TEAM_SLUG;"
   [ "$status" -eq 1 ]
 }
 
@@ -333,7 +341,7 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-dockerfile-discovery: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-dockerfile-discovery/github-dockerfile-discovery.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
@@ -342,12 +350,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-get-consumed-licenses: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-get-consumed-licenses: exits 1 when ENTERPRISE is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ENTERPRISE; bash '${REPO_ROOT}/enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh" "export GITHUB_TOKEN=fake; unset ENTERPRISE;"
   [ "$status" -eq 1 ]
 }
 
@@ -356,7 +364,7 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-get-public-repos: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/enterprise/github-get-public-repos/github-get-public-repos.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-get-public-repos/github-get-public-repos.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
@@ -365,28 +373,28 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-install-enterprise-app: exits 1 when ENTERPRISE is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset ENTERPRISE; bash '${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh" "unset ENTERPRISE;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-install-enterprise-app: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export ENTERPRISE=my-ent; unset ORG; bash '${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh" "export ENTERPRISE=my-ent; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-install-enterprise-app: exits 1 when INSTALLER_APP_CLIENT_ID is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export ENTERPRISE=my-ent; export ORG=test; unset INSTALLER_APP_CLIENT_ID; bash '${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh'"
+  _run_script "${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh" "export ENTERPRISE=my-ent; export ORG=test; unset INSTALLER_APP_CLIENT_ID;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-install-enterprise-app: exits 1 for unknown argument" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset ENTERPRISE; bash '${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh' --garbage"
+  _run_script "${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh" "unset ENTERPRISE;" "--garbage"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Unknown option"* ]]
 }
 
 @test "github-install-enterprise-app: --help exits 0" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; bash '${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh' --help"
+  _run_script "${REPO_ROOT}/enterprise/github-install-enterprise-app/github-install-enterprise-app.sh" "" "--help"
   [ "$status" -eq 0 ]
 }
 
@@ -395,27 +403,27 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-monthly-issues-report: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-monthly-issues-report: exits 1 when ORG is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; unset ORG; bash '${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh" "export GITHUB_TOKEN=fake; unset ORG;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-monthly-issues-report: exits 1 when REPO is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; unset REPO; bash '${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh" "export GITHUB_TOKEN=fake; export ORG=test; unset REPO;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-monthly-issues-report: exits 1 when MONTH_START is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; export REPO=my-repo; unset MONTH_START; bash '${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh" "export GITHUB_TOKEN=fake; export ORG=test; export REPO=my-repo; unset MONTH_START;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-monthly-issues-report: exits 1 when MONTH_END is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; export ORG=test; export REPO=my-repo; export MONTH_START=2024-01-01; unset MONTH_END; bash '${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-monthly-issues-report/github-monthly-issues-report.sh" "export GITHUB_TOKEN=fake; export ORG=test; export REPO=my-repo; export MONTH_START=2024-01-01; unset MONTH_END;"
   [ "$status" -eq 1 ]
 }
 
@@ -424,18 +432,18 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-repo-permissions-report: exits 1 when -r is not provided" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; export GITHUB_TOKEN=fake; bash '${REPO_ROOT}/reporting/github-repo-permissions-report/github-repo-permissions-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-repo-permissions-report/github-repo-permissions-report.sh" "export GITHUB_TOKEN=fake;"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Repository is required"* ]]
 }
 
 @test "github-repo-permissions-report: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/reporting/github-repo-permissions-report/github-repo-permissions-report.sh' -r org/repo"
+  _run_script "${REPO_ROOT}/reporting/github-repo-permissions-report/github-repo-permissions-report.sh" "unset GITHUB_TOKEN;" "-r org/repo"
   [ "$status" -eq 1 ]
 }
 
 @test "github-repo-permissions-report: --help exits 0" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; bash '${REPO_ROOT}/reporting/github-repo-permissions-report/github-repo-permissions-report.sh' --help"
+  _run_script "${REPO_ROOT}/reporting/github-repo-permissions-report/github-repo-permissions-report.sh" "" "--help"
   [ "$status" -eq 0 ]
 }
 
@@ -444,12 +452,12 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-copilot-report: exits 1 when GITHUB_TOKEN is not set" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/reporting/github-copilot-report/github-copilot-report.sh'"
+  _run_script "${REPO_ROOT}/reporting/github-copilot-report/github-copilot-report.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
 }
 
 @test "github-copilot-report: --help exits 0" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; bash '${REPO_ROOT}/reporting/github-copilot-report/github-copilot-report.sh' --help"
+  _run_script "${REPO_ROOT}/reporting/github-copilot-report/github-copilot-report.sh" "" "--help"
   [ "$status" -eq 0 ]
 }
 
@@ -458,18 +466,18 @@ _mock_curl_200() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @test "github-organize-stars: exits 1 when not authenticated (no token, no gh session)" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/personal/github-organize-stars/github-organize-stars.sh'"
+  _run_script "${REPO_ROOT}/personal/github-organize-stars/github-organize-stars.sh" "unset GITHUB_TOKEN;"
   [ "$status" -eq 1 ]
   [[ "$output" == *"Not authenticated"* ]]
 }
 
 @test "github-organize-stars: --help exits 0" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; bash '${REPO_ROOT}/personal/github-organize-stars/github-organize-stars.sh' --help"
+  _run_script "${REPO_ROOT}/personal/github-organize-stars/github-organize-stars.sh" "" "--help"
   [ "$status" -eq 0 ]
 }
 
 @test "github-organize-stars: --dry-run is recognised (fails at auth check, not arg parse)" {
-  run bash -c "export PATH='${MOCK_BIN}:${PATH}'; unset GITHUB_TOKEN; bash '${REPO_ROOT}/personal/github-organize-stars/github-organize-stars.sh' --dry-run"
+  _run_script "${REPO_ROOT}/personal/github-organize-stars/github-organize-stars.sh" "unset GITHUB_TOKEN;" "--dry-run"
   [ "$status" -eq 1 ]
   [[ "$output" != *"Unknown option"* ]]
 }

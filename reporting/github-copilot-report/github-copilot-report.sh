@@ -77,30 +77,13 @@ if [[ "$_today" -ge "20260601" && "$_today" -lt "20260901" ]]; then
 fi
 
 plan_credits() {
-    # If an explicit override is set, always use it
-    if [[ -n "$CREDITS_PER_SEAT_OVERRIDE" ]]; then
-        echo "$CREDITS_PER_SEAT_OVERRIDE"
-        return
-    fi
-    if [[ "$IN_PROMO_PERIOD" == "true" ]]; then
-        case "${1,,}" in
-            business)          echo "3000" ;;
-            enterprise)        echo "7000" ;;
-            pro_plus|proplus)  echo "7000" ;;
-            free)              echo "50"   ;;
-            pro)               echo "3000" ;;
-            *)                 echo "3000" ;;
-        esac
-    else
-        case "${1,,}" in
-            business)          echo "1900" ;;
-            enterprise)        echo "3900" ;;
-            pro_plus|proplus)  echo "3900" ;;
-            free)              echo "50"   ;;
-            pro)               echo "1900" ;;
-            *)                 echo "1900" ;;
-        esac
-    fi
+    [[ -n "$CREDITS_PER_SEAT_OVERRIDE" ]] && { echo "$CREDITS_PER_SEAT_OVERRIDE"; return; }
+    local promo="$IN_PROMO_PERIOD"
+    case "${1,,}" in
+        enterprise|pro_plus|proplus) [[ "$promo" == "true" ]] && echo "7000" || echo "3900" ;;
+        free)                        echo "50" ;;
+        *)                           [[ "$promo" == "true" ]] && echo "3000" || echo "1900" ;;
+    esac
 }
 
 # ── Help text ─────────────────────────────────────────────────────────────────
@@ -206,14 +189,6 @@ else
     print_warning "az CLI is not logged in — department/division grouping will be skipped."
     print_warning "Run 'az login' to enable Entra ID enrichment, or pass --no-entra."
 fi
-
-# ── GitHub API via curl with Copilot API version ──────────────────────────────
-# The Copilot usage-metrics endpoints require API version 2026-03-10.
-_copilot_api() {
-    local url="$1"; shift
-    gh_api "${url}" --api-version 2026-03-10 "$@"
-}
-
 # fetch_usage_ndjson REPORT_PATH
 # Calls the new usage metrics API (which returns signed download_links to NDJSON
 # files rather than inline JSON), downloads each file, and emits one NDJSON
@@ -221,7 +196,7 @@ _copilot_api() {
 fetch_usage_ndjson() {
     local path="$1"
     local resp links
-    resp=$(_copilot_api "${path}" 2>/dev/null) || return 0
+    resp=$(gh_api "${path}" --api-version 2026-03-10 2>/dev/null) || return 0
     [[ "${resp}" == "__404__" || "${resp}" == "__422__" ]] && return 0
     links=$(echo "$resp" | jq -r '.download_links[]? // empty' 2>/dev/null) || return 0
     [[ -z "$links" ]] && return 0
@@ -323,8 +298,7 @@ while IFS= read -r _login; do
     [[ -z "$_login" ]] && continue
     _login_i=$(( _login_i + 1 ))
     printf '\r  [%d/%d] %s          ' "$_login_i" "$_LOGIN_COUNT" "$_login" >&2
-    _resp=$(_copilot_api \
-        "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/ai_credit/usage?user=${_login}&year=${_BILLING_YEAR}&month=${_BILLING_MONTH}") || _resp=""
+    _resp=$(gh_api "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/ai_credit/usage?user=${_login}&year=${_BILLING_YEAR}&month=${_BILLING_MONTH}" --api-version 2026-03-10) || _resp=""
     if [[ "${_resp}" == "__404__" || "${_resp}" == "__422__" ]]; then
         # No usage data this month — valid, treat as 0 credits.
         _credits="0"

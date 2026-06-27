@@ -21,12 +21,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/github-common.sh
+source "${SCRIPT_DIR}/lib/github-common.sh"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
+# Override lib's print functions with [HOOKS] prefix for this script's output.
 print_success() { echo -e "${GREEN}[HOOKS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[HOOKS]${NC} $1"; }
 print_error()   { echo -e "${RED}[HOOKS]${NC} $1" >&2; }
