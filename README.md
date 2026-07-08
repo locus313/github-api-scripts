@@ -142,7 +142,7 @@ Each script is a self-contained utility designed for a specific task. Navigate t
 
 - `org-admin/`: `github-add-repo-collaborators-by-pattern`, `github-add-repo-permissions`, `github-archive-old-repos`, `github-auto-repo-creation`, `github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-get-repo-list`, `github-import-repo`, `github-migrate-internal-repos-to-private`, `github-repo-from-template`
 - `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`, `github-install-enterprise-app`
-- `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`
+- `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`, `github-copilot-budget-advisor`
 - `personal/`: `github-organize-stars`
 
 ### Add Repository Permissions
@@ -628,6 +628,57 @@ az login   # optional; needed only for Entra ID department enrichment
 
 ---
 
+### Copilot Budget Advisor
+
+**Script:** `reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh`
+
+Analyses per-user GitHub Copilot AI credit consumption over the last 30 days and recommends a Universal per-user budget limit. The recommendation is based on the 90th-percentile of actual usage, rounded up to the nearest 100 credits, so that ~90% of users can work without hitting the cap while outlier usage is still bounded.
+
+**Prerequisites:**
+- **[curl](https://curl.se)** — HTTP client
+- **[jq](https://stedolan.github.io/jq)** — JSON processor
+- **[awk](https://www.gnu.org/software/gawk/)** — for statistical calculations (available by default on macOS and Linux)
+
+**Required variables:**
+```bash
+export GITHUB_ENTERPRISE="your-enterprise-slug"
+
+# GitHub auth — use one of:
+export GITHUB_TOKEN=ghp_yourtoken    # PAT with read:enterprise and manage_billing:enterprise scopes
+# OR: token is resolved automatically from an active gh auth session with the required scopes
+```
+
+**Usage:**
+```bash
+cd reporting/github-copilot-budget-advisor
+
+./github-copilot-budget-advisor.sh -e YOUR-ENTERPRISE
+./github-copilot-budget-advisor.sh -e YOUR-ENTERPRISE --days 14
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-e, --enterprise SLUG` | GitHub Enterprise slug (or `$GITHUB_ENTERPRISE`) | — |
+| `--days N` | Look-back window in days (1–60) | `30` |
+
+**What it does:**
+- Fetches all Copilot seats across the enterprise (deduplicated by user)
+- Fetches per-user AI credit consumption for the current billing month and, when the look-back window extends into it, the previous month (prorated by days)
+- Calculates usage distribution: P50, P75, P90, P95, and max
+- Recommends the P90 value rounded up to the nearest 100 as the Universal baseline budget
+- Lists the top consumers (users above P90) so you can decide whether to adjust the suggestion up or down
+- Shows the exact navigation path in GitHub to create the budget
+
+> [!IMPORTANT]
+> Requires a PAT with `read:enterprise` and `manage_billing:enterprise` scopes. Set `GITHUB_TOKEN` before executing (or have an active `gh` auth session with those scopes).
+
+> [!NOTE]
+> 1 AI credit ≈ $0.01 USD. Code completions are **not** billed in AI credits and are not included in this analysis. The budget tracks both included and additional (overage) usage.
+
+---
+
 ### Get Consumed Licenses
 
 **Script:** `enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh`
@@ -949,6 +1000,7 @@ Each script is published as a **composite action**, so you can reference it dire
 | `reporting/github-monthly-issues-report` | Generate an HTML report of issues created within a date range |
 | `reporting/github-repo-permissions-report` | Export repository collaborator/team permissions and branch-approval bypass actors to CSV |
 | `reporting/github-copilot-report` | GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID department data |
+| `reporting/github-copilot-budget-advisor` | Analyse per-user Copilot AI credit consumption and recommend a Universal per-user budget limit |
 
 ---
 

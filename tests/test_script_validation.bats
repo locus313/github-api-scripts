@@ -481,3 +481,47 @@ _run_script() {
   [ "$status" -eq 1 ]
   [[ "$output" != *"Unknown option"* ]]
 }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# reporting/github-copilot-budget-advisor
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@test "github-copilot-budget-advisor: exits 1 when GITHUB_ENTERPRISE is not set" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "export GITHUB_TOKEN=fake; unset GITHUB_ENTERPRISE;"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-copilot-budget-advisor: exits 1 when GITHUB_TOKEN is not set" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "unset GITHUB_TOKEN; export GITHUB_ENTERPRISE=my-ent;"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-copilot-budget-advisor: --help exits 0" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "" "--help"
+  [ "$status" -eq 0 ]
+}
+
+@test "github-copilot-budget-advisor: unknown option exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent;" "--unknown-flag"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Unknown option"* ]]
+}
+
+@test "github-copilot-budget-advisor: --days out of range exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "" "--days 99"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"--days must be"* ]]
+}
+
+@test "github-copilot-budget-advisor: --days non-numeric exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "" "--days foo"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"--days must be"* ]]
+}
+
+@test "github-copilot-budget-advisor: --days is recognised (fails at enterprise check, not arg parse)" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-budget-advisor/github-copilot-budget-advisor.sh" "export GITHUB_TOKEN=fake; unset GITHUB_ENTERPRISE;" "--days 14"
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"Unknown option"* ]]
+  [[ "$output" != *"--days must be"* ]]
+}

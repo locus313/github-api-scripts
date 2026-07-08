@@ -1,0 +1,25 @@
+name: 'Copilot Budget Advisor'
+description: 'Analyses per-user GitHub Copilot AI credit consumption over the last 30 days and recommends a Universal budget limit'
+inputs:
+  github-token:
+    description: 'PAT with read:enterprise and manage_billing:enterprise scopes. Cannot be the built-in GITHUB_TOKEN.'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  days:
+    description: 'Look-back window in days (1–60)'
+    required: false
+    default: '30'
+runs:
+  using: composite
+  steps:
+    - name: Analyse Copilot usage and suggest budget
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_ENTERPRISE: ${{ inputs.enterprise }}
+      run: |
+        ARGS=()
+        [[ -n "${{ inputs.days }}" ]] && ARGS+=(--days "${{ inputs.days }}")
+        "${{ github.action_path }}/github-copilot-budget-advisor.sh" "${ARGS[@]}"
