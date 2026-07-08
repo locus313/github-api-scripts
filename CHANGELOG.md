@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.3.1](https://github.com/locus313/github-api-scripts/compare/v1.3.0...v1.3.1) (2026-07-08)
+
+
+### Code Refactoring
+
+* replace get_all_pages with gh_api_paginate and use err() helper ([89bbeab](https://github.com/locus313/github-api-scripts/commit/89bbeab1ee06ba8e203e73881c1cc0593ccd6cc2))
+
 ## [1.3.0](https://github.com/locus313/github-api-scripts/compare/v1.2.1...v1.3.0) (2026-07-08)
 
 
