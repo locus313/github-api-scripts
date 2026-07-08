@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.3.0](https://github.com/locus313/github-api-scripts/compare/v1.2.1...v1.3.0) (2026-07-08)
+
+
+### Features
+
+* add Copilot Budget Advisor script and validation tests ([c57bfc9](https://github.com/locus313/github-api-scripts/commit/c57bfc92a912c6cfc430139dc6a08154fd204d99))
+
 ## [1.2.1](https://github.com/locus313/github-api-scripts/compare/v1.2.0...v1.2.1) (2026-06-27)
 
 
