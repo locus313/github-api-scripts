@@ -55,12 +55,10 @@ validate_github_token
 
 # Validate date format to prevent jq filter injection
 if ! [[ "${MONTH_START}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-  print_error "MONTH_START must be YYYY-MM-DD, got: ${MONTH_START}"
-  exit 1
+  err "MONTH_START must be YYYY-MM-DD, got: ${MONTH_START}"
 fi
 if ! [[ "${MONTH_END}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-  print_error "MONTH_END must be YYYY-MM-DD, got: ${MONTH_END}"
-  exit 1
+  err "MONTH_END must be YYYY-MM-DD, got: ${MONTH_END}"
 fi
 
 ISSUES_TEMP=$(mktemp)

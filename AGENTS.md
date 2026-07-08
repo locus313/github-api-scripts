@@ -136,106 +136,10 @@ Use `_mock_curl_200` (defined in `test_script_validation.bats`) when a test must
 
 ## Key Patterns and Conventions
 
-### Script anatomy
-
-Every script begins with a `# ===` header (exactly 79 `=` chars), then immediately `set -euo pipefail`:
-
-```bash
-#!/usr/bin/env bash
-# =============================================================================
-# github-<name>.sh
-#
-# <description>
-#
-# Usage:
-#   export GITHUB_TOKEN=ghp_yourtoken
-#   export ORG=my-org
-#   ./github-<name>.sh
-#
-# Environment variables:
-#   GITHUB_TOKEN    Required. PAT with <scope> scope
-#   ORG             Required. GitHub organization name
-#   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
-#
-# Requirements:
-#   - curl
-#   - jq
-# =============================================================================
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../../lib/github-common.sh
-source "${SCRIPT_DIR}/../../lib/github-common.sh"
-```
-
-### Sourcing the shared library
-
-Always use `SCRIPT_DIR` to build the path to `lib/github-common.sh`. The library is two directory levels up from any script (`../../lib/github-common.sh`). Never hardcode absolute paths.
-
-### Authentication
-
-- Standard org/repo REST calls: `Authorization: token ${GITHUB_TOKEN}`
-- Enterprise endpoints and GraphQL: `Authorization: Bearer ${GITHUB_TOKEN}`
-- The `gh_api` helper in `lib/github-common.sh` always uses Bearer; pass `"bearer"` to `validate_github_token` for enterprise scripts
-
-### Shared library helpers
-
-| Function | Purpose |
-|----------|---------|
-| `print_status` / `print_success` / `print_warning` / `print_error` | Colored output |
-| `err <message>` | `print_error` + `exit 1` in one call |
-| `require_env_var <VAR>` | Exit with message if variable unset/empty |
-| `require_command <cmd>` | Exit if binary not in PATH |
-| `configure_gh_auth [scope_hint]` | Bridge GITHUB_TOKEN→GH_TOKEN or verify gh auth session |
-| `validate_github_token [bearer]` | Verify GITHUB_TOKEN via /user endpoint |
-| `validate_slug <value> <label>` | Reject values with non-alphanumeric/hyphen/underscore chars |
-| `gh_api <path> [--api-version V] [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling; optional `--api-version` overrides the default `2022-11-28` header; returns literal `__404__` or `__422__` for those HTTP statuses — callers must check for these sentinels |
-| `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items; returns silently with empty output on 404/422 |
-| `get_enterprise_orgs` | Three-tier enterprise org resolver (REST → GraphQL → /user/orgs) |
-| `get_repo_page_count <url>` | Returns total pages for a paginated endpoint |
-
-### Error handling sequence
-
-1. `require_env_var` all required variables
-2. `validate_github_token` (or `validate_token` for secondary tokens)
-3. Validate additional inputs with `validate_slug` where needed
-4. Proceed with main logic
-
-> **Note on token auto-resolution:** Sourcing `lib/github-common.sh` automatically populates `GITHUB_TOKEN` from an active `gh` auth session if the variable is unset. This means `require_env_var GITHUB_TOKEN` may pass even when no explicit token was provided by the caller — the token was silently resolved from `gh auth token`. Script headers should document `GITHUB_TOKEN` as "Required (or provided by an active gh auth session)". Scripts that use the `gh` CLI instead of `curl` should call `configure_gh_auth` instead of step 2 above.
-
-### Pagination (REST)
-
-```bash
-for PAGE in $(seq "$(get_repo_page_count "${API_URL_PREFIX}/orgs/${ORG}/repos?per_page=100")"); do
-  # process page
-done
-```
-
-### Rate limiting
-
-- Repo-level operations (permission grants, archival): `sleep 5` between each repo
-- Code search: configurable `SEARCH_SLEEP` (default 2s) and `CONTENT_SLEEP` (default 1s)
-- `gh_api` auto-retries on HTTP 403/429 with 60s sleep
-- `gh_api` returns the literal string `__404__` or `__422__` (exit 0) for those HTTP statuses — callers must check for these sentinels before passing output to `jq`
-
----
-
-## Adding a New Script
-
-1. **Create the directory:** `<domain>/github-<verb-noun>/`
-2. **Create the script:** `github-<verb-noun>.sh` (name must match the directory)
-3. **Copy the header template** from Script Anatomy above — fill in description, all env vars, requirements
-4. **Source the shared library** using `SCRIPT_DIR`
-5. **Validate all inputs** before any API calls
-6. **Create `action.yml`** in the same directory — expose every env var as an input (required inputs first, optional inputs with defaults); map CLI flags (`--dry-run`, `--type`, etc.) to boolean/string inputs and construct the `ARGS` array in the `run:` step. See existing `action.yml` files for the pattern.
-7. **Add tests to `tests/test_script_validation.bats`** — add a labelled section (`# ═══ github-<name> ═══`) with tests for: every required env var missing (exit 1), unknown CLI args (exit 1), `--help` exits 0, and any script-specific validation (enum guards, URL allowlists, positional args). See existing sections for the pattern.
-8. **Add to README.md** — follow the existing format: use case, env var table, usage example, output format; add a row to the Available Actions table in the "Using Scripts in GitHub Actions" section
-9. Place in the correct domain:
-   - `org-admin/` — organization-level operations (repos, teams, members)
-   - `enterprise/` — enterprise-level operations (licenses, org enumeration)
-   - `reporting/` — read-only reports and audits
-   - `personal/` — personal GitHub utilities (stars, profile)
+> The full reference for script anatomy, shared library helpers, authentication,
+> pagination, and adding new scripts lives in
+> [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
+> The sections below cover only what is unique to this guide.
 
 ---
 
@@ -244,7 +148,7 @@ done
 - **Pre-commit hook:** `.githooks/pre-commit` — runs gitleaks + shellcheck on staged `.sh` files
 - **Install:** `./install-hooks.sh` or `git config core.hooksPath .githooks`
 - **Bypass (emergency only):** `git commit --no-verify`
-- **CI:** shellcheck runs on all `.sh` files on every PR (`.github/workflows/ci.yml`); bats unit tests run in a dedicated `test` job (`bats tests/`)
+- **CI:** shellcheck + bats unit tests run together on every PR (`.github/workflows/ci.yml`)
 - **Releases:** automated by Release Please (`.github/workflows/release.yml`) — pushes to `main` trigger a release PR; merging it publishes the GitHub Release and tag
 
 ## Commit Messages — Conventional Commits (required)

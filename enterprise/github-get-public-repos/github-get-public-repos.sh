@@ -78,8 +78,7 @@ resolve_orgs() {
     local _rc=0
     echo "" | grep -qE "${ORG_FILTER}" 2>/dev/null || _rc=$?
     if [ "${_rc}" -eq 2 ]; then
-      print_error "ORG_FILTER is not a valid ERE regex: ${ORG_FILTER}"
-      exit 1
+      err "ORG_FILTER is not a valid ERE regex: ${ORG_FILTER}"
     fi
     raw_orgs=$(echo "${raw_orgs}" | grep -E "${ORG_FILTER}" || true)
   fi
@@ -89,8 +88,7 @@ resolve_orgs() {
     local _rc=0
     echo "" | grep -qE "${ORG_EXCLUDE}" 2>/dev/null || _rc=$?
     if [ "${_rc}" -eq 2 ]; then
-      print_error "ORG_EXCLUDE is not a valid ERE regex: ${ORG_EXCLUDE}"
-      exit 1
+      err "ORG_EXCLUDE is not a valid ERE regex: ${ORG_EXCLUDE}"
     fi
     raw_orgs=$(echo "${raw_orgs}" | grep -Ev "${ORG_EXCLUDE}" || true)
   fi
@@ -186,8 +184,7 @@ main() {
   orgs=$(resolve_orgs)
 
   if [ -z "${orgs}" ]; then
-    print_error "No organisations found. Check your ENTERPRISE/ORGS/ORG_FILTER settings."
-    exit 1
+    err "No organisations found. Check your ENTERPRISE/ORGS/ORG_FILTER settings."
   fi
 
   local org_count

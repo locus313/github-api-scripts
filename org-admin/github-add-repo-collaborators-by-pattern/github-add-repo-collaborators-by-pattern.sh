@@ -59,8 +59,7 @@ validate() {
   case "${PERMISSION}" in
     pull|triage|push|maintain|admin) ;;
     *)
-      print_error "Invalid PERMISSION '${PERMISSION}'. Must be one of: pull, triage, push, maintain, admin"
-      exit 1
+      err "Invalid PERMISSION '${PERMISSION}'. Must be one of: pull, triage, push, maintain, admin"
       ;;
   esac
   require_command jq

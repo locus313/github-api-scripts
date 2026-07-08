@@ -85,9 +85,8 @@ case "${GIT_URL_PREFIX}" in
   https://github.com|https://*.github.com|https://*.ghe.com|https://*.githubenterprise.com)
     ;;
   *)
-    print_error "GIT_URL_PREFIX '${GIT_URL_PREFIX}' is not a recognised GitHub host. \
+    err "GIT_URL_PREFIX '${GIT_URL_PREFIX}' is not a recognised GitHub host. \
 Refusing to run git operations that would expose GITHUB_TOKEN to an unverified host."
-    exit 1
     ;;
 esac
 

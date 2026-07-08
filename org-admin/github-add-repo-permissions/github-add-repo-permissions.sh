@@ -58,9 +58,7 @@ require_command jq
 
 # Check if at least one permission level is set
 if [ -z "${REPO_ADMIN}" ] && [ -z "${REPO_MAINTAIN}" ] && [ -z "${REPO_PUSH}" ] && [ -z "${REPO_TRIAGE}" ] && [ -z "${REPO_PULL}" ]; then
-  print_error "At least one permission level must be set."
-  print_error "Available variables: REPO_ADMIN, REPO_MAINTAIN, REPO_PUSH, REPO_TRIAGE, REPO_PULL"
-  exit 1
+  err "At least one permission level must be set. Available: REPO_ADMIN, REPO_MAINTAIN, REPO_PUSH, REPO_TRIAGE, REPO_PULL"
 fi
 
 validate_github_token
@@ -103,8 +101,7 @@ process_repos () {
 
     if ! echo "${repos_json}" | jq -e 'type == "array"' > /dev/null 2>&1; then
       print_error "Unexpected API response for page ${PAGE}"
-      print_error "$(echo "${repos_json}" | jq -r '.message // "unknown error"')"
-      exit 1
+      err "$(echo "${repos_json}" | jq -r '.message // "unknown error"')"
     fi
 
     while IFS= read -r REPO; do

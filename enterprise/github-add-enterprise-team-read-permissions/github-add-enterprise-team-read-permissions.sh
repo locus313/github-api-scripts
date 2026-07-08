@@ -138,8 +138,7 @@ print_status "Fetching organizations in enterprise: ${ENTERPRISE}..."
 mapfile -t ORG_LIST < <(get_enterprise_orgs)
 
 if [ "${#ORG_LIST[@]}" -eq 0 ]; then
-  print_error "No organizations found in enterprise '${ENTERPRISE}'. Check the enterprise slug and token permissions."
-  exit 1
+  err "No organizations found in enterprise '${ENTERPRISE}'. Check the enterprise slug and token permissions."
 fi
 
 print_status "Found ${#ORG_LIST[@]} organization(s)"

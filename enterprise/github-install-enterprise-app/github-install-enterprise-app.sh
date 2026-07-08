@@ -76,8 +76,7 @@ for arg in "$@"; do
       exit 0
       ;;
     *)
-      print_error "Unknown option: ${arg}"
-      exit 1
+      err "Unknown option: ${arg}"
       ;;
   esac
 done
@@ -100,8 +99,7 @@ validate_slug "${INSTALLER_APP_INSTALL_ID}" "installer app installation ID"
 case "${REPO_SELECTION}" in
   all|selected) ;;
   *)
-    print_error "REPO_SELECTION must be 'all' or 'selected' (got '${REPO_SELECTION}')"
-    exit 1
+    err "REPO_SELECTION must be 'all' or 'selected' (got '${REPO_SELECTION}')"
     ;;
 esac
 
@@ -111,12 +109,10 @@ INSTALLER_APP_PRIVATE_KEY="${INSTALLER_APP_PRIVATE_KEY/#\~/${HOME}}"
   AUTOMATION_APP_PRIVATE_KEY="${AUTOMATION_APP_PRIVATE_KEY/#\~/${HOME}}"
 
 if [ ! -r "${INSTALLER_APP_PRIVATE_KEY}" ]; then
-  print_error "Installer app private key not readable: ${INSTALLER_APP_PRIVATE_KEY}"
-  exit 1
+  err "Installer app private key not readable: ${INSTALLER_APP_PRIVATE_KEY}"
 fi
 if [ -n "${AUTOMATION_APP_PRIVATE_KEY}" ] && [ ! -r "${AUTOMATION_APP_PRIVATE_KEY}" ]; then
-  print_error "Automation app private key not readable: ${AUTOMATION_APP_PRIVATE_KEY}"
-  exit 1
+  err "Automation app private key not readable: ${AUTOMATION_APP_PRIVATE_KEY}"
 fi
 
 ###
@@ -233,8 +229,7 @@ case "${INSTALL_HTTP_CODE}" in
     ;;
   *)
     INSTALL_MESSAGE=$(echo "${INSTALL_BODY}" | jq -r '.message // empty' 2>/dev/null || true)
-    print_error "Failed to install automation app (HTTP ${INSTALL_HTTP_CODE}): ${INSTALL_MESSAGE:-unknown error}"
-    exit 1
+    err "Failed to install automation app (HTTP ${INSTALL_HTTP_CODE}): ${INSTALL_MESSAGE:-unknown error}"
     ;;
 esac
 
@@ -256,6 +251,5 @@ if mint_installation_token \
   "${AUTOMATION_APP_INSTALL_ID}" > /dev/null; then
   print_success "Automation app authenticated successfully in '${ORG}'. Installation is live."
 else
-  print_error "Could not authenticate the automation app after install."
-  exit 1
+  err "Could not authenticate the automation app after install."
 fi

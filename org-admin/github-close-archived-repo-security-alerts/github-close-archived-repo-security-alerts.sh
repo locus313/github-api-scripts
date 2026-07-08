@@ -65,9 +65,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      print_error "Unknown argument: $1"
       echo "Usage: $0 [--type dependabot|code-scanning|secret-scanning|all] [--dry-run]"
-      exit 1
+      err "Unknown argument: $1"
       ;;
   esac
 done
@@ -76,8 +75,7 @@ done
 case "$ALERT_TYPE" in
   dependabot|code-scanning|secret-scanning|all) ;;
   *)
-    print_error "Invalid --type value: '${ALERT_TYPE}'. Must be one of: dependabot, code-scanning, secret-scanning, all"
-    exit 1
+    err "Invalid --type value: '${ALERT_TYPE}'. Must be one of: dependabot, code-scanning, secret-scanning, all"
     ;;
 esac
 
@@ -85,16 +83,14 @@ esac
 case "${DEPENDABOT_REASON}" in
   fix_started|inaccurate|no_bandwidth|not_used|tolerable_risk) ;;
   *)
-    print_error "Invalid DEPENDABOT_REASON '${DEPENDABOT_REASON}'. Must be one of: fix_started, inaccurate, no_bandwidth, not_used, tolerable_risk"
-    exit 1
+    err "Invalid DEPENDABOT_REASON '${DEPENDABOT_REASON}'. Must be one of: fix_started, inaccurate, no_bandwidth, not_used, tolerable_risk"
     ;;
 esac
 
 case "${SECRET_SCANNING_RESOLUTION}" in
   false_positive|wont_fix|revoked|used_in_tests) ;;
   *)
-    print_error "Invalid SECRET_SCANNING_RESOLUTION '${SECRET_SCANNING_RESOLUTION}'. Must be one of: false_positive, wont_fix, revoked, used_in_tests"
-    exit 1
+    err "Invalid SECRET_SCANNING_RESOLUTION '${SECRET_SCANNING_RESOLUTION}'. Must be one of: false_positive, wont_fix, revoked, used_in_tests"
     ;;
 esac
 
@@ -126,64 +122,9 @@ if [ "${DRY_RUN}" = false ]; then
 fi
 
 ###
-## HELPER: paginate a GET endpoint and collect all JSON array items
-###
-get_all_pages() {
-  local url="$1"
-  local page=1
-  local results='[]'
-
-  while true; do
-    local response
-    response=$(curl -s \
-      -H "Authorization: token ${GITHUB_TOKEN}" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "${url}&per_page=100&page=${page}")
-
-    # Empty body — feature not available for this repo
-    if [ -z "${response}" ]; then
-      break
-    fi
-
-    # Not valid JSON at all (e.g. HTML redirect page)
-    if ! echo "${response}" | jq -e '.' &>/dev/null; then
-      break
-    fi
-
-    # Response is an error object, not an array
-    if ! echo "${response}" | jq -e 'type == "array"' &>/dev/null; then
-      local msg
-      msg=$(echo "${response}" | jq -r '.message // "unknown error"')
-      # Silently skip expected "not enabled / not found" responses
-      local msg_lower
-      msg_lower=$(echo "${msg}" | tr '[:upper:]' '[:lower:]')
-      if [[ "${msg_lower}" != *"not enabled"* ]] && \
-         [[ "${msg_lower}" != *"advanced security"* ]] && \
-         [[ "${msg_lower}" != *"not found"* ]] && \
-         [[ "${msg_lower}" != *"disabled"* ]]; then
-        print_warning "API message: ${msg}" >&2
-      fi
-      break
-    fi
-
-    local count
-    count=$(echo "${response}" | jq 'length')
-    if [ "${count}" -eq 0 ]; then
-      break
-    fi
-
-    results=$(echo "${results} ${response}" | jq -s '.[0] + .[1]')
-    page=$((page + 1))
-  done
-
-  echo "${results}"
-}
-
-###
 ## close_alerts <type> <repo> <summary_jq> <action> <payload>
-## Generic alert-closer: fetches all open alerts on the given type endpoint,
-## then dismisses/resolves each one.
+## Generic alert-closer: streams all open alerts on the given type endpoint
+## via gh_api_paginate, then dismisses/resolves each one.
 ##   type        — endpoint segment and display label (dependabot, code-scanning, secret-scanning)
 ##   repo        — repository name (without org prefix)
 ##   summary_jq  — jq expression to extract a human-readable alert summary from one alert object
@@ -193,22 +134,18 @@ get_all_pages() {
 close_alerts() {
   local type="$1" repo="$2" summary_jq="$3" action="$4" payload="$5"
   local base_path="/repos/${ORG}/${repo}/${type}/alerts"
+  local any_found=false
 
   print_status "[${type}] Processing ${ORG}/${repo}..."
-  local alerts count
-  alerts=$(get_all_pages "${API_URL_PREFIX}${base_path}?state=open")
-  count=$(echo "${alerts}" | jq 'length')
 
-  if [ "${count}" -eq 0 ]; then
-    print_status "[${type}] No open alerts in ${repo}"
-    return
-  fi
-  print_status "[${type}] Found ${count} open alert(s) in ${repo}"
+  while IFS= read -r alert_json; do
+    local alert_number
+    alert_number=$(printf '%s' "${alert_json}" | jq -r '.number // empty' 2>/dev/null) || continue
+    [[ -z "${alert_number}" ]] && continue
+    any_found=true
 
-  for i in $(seq 0 $((count - 1))); do
-    local alert_number summary
-    alert_number=$(echo "${alerts}" | jq -r ".[${i}].number")
-    summary=$(echo "${alerts}" | jq -r ".[${i}] | ${summary_jq}")
+    local summary
+    summary=$(printf '%s' "${alert_json}" | jq -r "${summary_jq}")
 
     if [ "${DRY_RUN}" = true ]; then
       print_warning "[DRY-RUN] Would ${action} ${type} alert #${alert_number} in ${ORG}/${repo}: ${summary}"
@@ -235,7 +172,9 @@ close_alerts() {
     fi
 
     sleep 0.2
-  done
+  done < <(gh_api_paginate "${base_path}?state=open&per_page=100" '.[] | select(.number) | @json' || true)
+
+  "${any_found}" || print_status "[${type}] No open alerts in ${repo}"
 }
 
 ###

@@ -10,11 +10,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install jq
-        run: sudo apt-get update -qq && sudo apt-get install -y jq
-
-      - name: Install shellcheck
-        run: sudo apt-get install -y shellcheck
+      - name: Install jq, shellcheck, and bats
+        run: sudo apt-get update -qq && sudo apt-get install -y jq shellcheck bats
 
       - name: Install gitleaks
         run: |

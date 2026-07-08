@@ -350,8 +350,7 @@ main() {
   fi
 
   if [ "${#orgs[@]}" -eq 0 ]; then
-    print_error "No organisations found. Check ENTERPRISE slug and token permissions."
-    exit 1
+    err "No organisations found. Check ENTERPRISE slug and token permissions."
   fi
 
 # ── Apply ORG_FILTER (inclusion) if set ────────────────────────────────
@@ -359,8 +358,7 @@ main() {
     local _rc=0
     echo "" | grep -qE "${ORG_FILTER}" 2>/dev/null || _rc=$?
     if [ "${_rc}" -eq 2 ]; then
-      print_error "ORG_FILTER is not a valid ERE regex: ${ORG_FILTER}"
-      exit 1
+      err "ORG_FILTER is not a valid ERE regex: ${ORG_FILTER}"
     fi
     local filtered=()
     for org in "${orgs[@]}"; do
@@ -378,8 +376,7 @@ main() {
     local _rc=0
     echo "" | grep -qE "${ORG_EXCLUDE}" 2>/dev/null || _rc=$?
     if [ "${_rc}" -eq 2 ]; then
-      print_error "ORG_EXCLUDE is not a valid ERE regex: ${ORG_EXCLUDE}"
-      exit 1
+      err "ORG_EXCLUDE is not a valid ERE regex: ${ORG_EXCLUDE}"
     fi
     local kept=()
     for org in "${orgs[@]}"; do
@@ -393,8 +390,7 @@ main() {
   fi
 
   if [ "${#orgs[@]}" -eq 0 ]; then
-    print_error "No organisations remain after applying ORG_FILTER/ORG_EXCLUDE filters."
-    exit 1
+    err "No organisations remain after applying ORG_FILTER/ORG_EXCLUDE filters."
   fi
   print_success "Found ${#orgs[@]} organisation(s): ${orgs[*]}"
 
