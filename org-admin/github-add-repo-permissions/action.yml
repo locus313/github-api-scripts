@@ -31,6 +31,26 @@ inputs:
     description: 'Space-separated team slugs to grant pull access'
     required: false
     default: ''
+  repo-admin-exclude:
+    description: 'Space-separated repo names to skip for admin access'
+    required: false
+    default: ''
+  repo-maintain-exclude:
+    description: 'Space-separated repo names to skip for maintain access'
+    required: false
+    default: ''
+  repo-push-exclude:
+    description: 'Space-separated repo names to skip for push access'
+    required: false
+    default: ''
+  repo-triage-exclude:
+    description: 'Space-separated repo names to skip for triage access'
+    required: false
+    default: ''
+  repo-pull-exclude:
+    description: 'Space-separated repo names to skip for pull access'
+    required: false
+    default: ''
   api-url-prefix:
     description: 'GitHub API base URL'
     required: false
@@ -49,5 +69,10 @@ runs:
         REPO_PUSH: ${{ inputs.repo-push }}
         REPO_TRIAGE: ${{ inputs.repo-triage }}
         REPO_PULL: ${{ inputs.repo-pull }}
+        REPO_ADMIN_EXCLUDE: ${{ inputs.repo-admin-exclude }}
+        REPO_MAINTAIN_EXCLUDE: ${{ inputs.repo-maintain-exclude }}
+        REPO_PUSH_EXCLUDE: ${{ inputs.repo-push-exclude }}
+        REPO_TRIAGE_EXCLUDE: ${{ inputs.repo-triage-exclude }}
+        REPO_PULL_EXCLUDE: ${{ inputs.repo-pull-exclude }}
         API_URL_PREFIX: ${{ inputs.api-url-prefix }}
       run: ${{ github.action_path }}/github-add-repo-permissions.sh

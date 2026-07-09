@@ -165,6 +165,9 @@ export REPO_PULL="external-auditors"            # Read/pull permissions
 
 # Optional: restrict to repos whose names start with a given prefix
 export REPO_NAME_FILTER="my-service-"
+
+# Optional: skip specific repos for a given permission level (space-separated repo names)
+export REPO_PULL_EXCLUDE="secret-repo internal-tools"   # These repos won't get pull access
 ```
 
 **Usage:**
@@ -178,6 +181,7 @@ cd org-admin/github-add-repo-permissions
 - Filters to repositories whose names start with `REPO_NAME_FILTER` (all repos when unset)
 - Grants permissions to specified teams based on permission level
 - Supports multiple teams per permission level (space-separated)
+- Skips repos listed in the matching `REPO_<LEVEL>_EXCLUDE` variable for that permission level only
 - Processes all five GitHub permission levels: admin, maintain, push, triage, pull
 - Includes 5-second delays between repos to avoid rate limits
 
@@ -190,6 +194,8 @@ cd org-admin/github-add-repo-permissions
 
 > [!NOTE]
 > At least one permission level must be set. Team slugs should be lowercase and hyphenated (e.g., "Platform Team" → `platform-team`).
+>
+> Each permission level has an optional exclusion list: `REPO_ADMIN_EXCLUDE`, `REPO_MAINTAIN_EXCLUDE`, `REPO_PUSH_EXCLUDE`, `REPO_TRIAGE_EXCLUDE`, and `REPO_PULL_EXCLUDE`. Each holds space-separated exact repo names that are skipped for that level only.
 
 ---
 
