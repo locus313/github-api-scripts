@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.4.0](https://github.com/locus313/github-api-scripts/compare/v1.3.1...v1.4.0) (2026-07-09)
+
+
+### Features
+
+* add per-permission-level repo exclusions to github-add-repo-permissions ([#48](https://github.com/locus313/github-api-scripts/issues/48)) ([e37ffb3](https://github.com/locus313/github-api-scripts/commit/e37ffb31f1d080862390ca6537d85714daa34895))
+
 ## [1.3.1](https://github.com/locus313/github-api-scripts/compare/v1.3.0...v1.3.1) (2026-07-08)
 
 
