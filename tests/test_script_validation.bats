@@ -86,8 +86,33 @@ _run_script() {
 }
 
 @test "github-add-repo-permissions: exits 1 when ORG is not set" {
-  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" "export GITHUB_TOKEN=fake; unset ORG;"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" "export GITHUB_TOKEN=fake; export REPO_PULL=read-team; unset ORG;"
   [ "$status" -eq 1 ]
+}
+
+@test "github-add-repo-permissions: exits 1 when no permission level is set" {
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" "export GITHUB_TOKEN=fake; export ORG=test;"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-add-repo-permissions: skips repo listed in REPO_PULL_EXCLUDE for pull only" {
+  cp "${BATS_TEST_DIRNAME}/mock_curl_permissions.sh" "$MOCK_BIN/curl"
+  chmod +x "$MOCK_BIN/curl"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" \
+    "export GITHUB_TOKEN=fake; export ORG=test; export REPO_PULL=read-team; export REPO_PULL_EXCLUDE=repo-skip;"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Skipping pull on repo-skip (excluded)"* ]]
+  [[ "$output" == *"Applied pull to read-team on repo-keep"* ]]
+}
+
+@test "github-add-repo-permissions: applies to all repos when exclude list is empty" {
+  cp "${BATS_TEST_DIRNAME}/mock_curl_permissions.sh" "$MOCK_BIN/curl"
+  chmod +x "$MOCK_BIN/curl"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" \
+    "export GITHUB_TOKEN=fake; export ORG=test; export REPO_PULL=read-team;"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Applied pull to read-team on repo-keep"* ]]
+  [[ "$output" == *"Applied pull to read-team on repo-skip"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
