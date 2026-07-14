@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.4.1](https://github.com/locus313/github-api-scripts/compare/v1.4.0...v1.4.1) (2026-07-14)
+
+
+### Code Refactoring
+
+* simplify seat probe diagnostics in copilot-report ([#50](https://github.com/locus313/github-api-scripts/issues/50)) ([aff647c](https://github.com/locus313/github-api-scripts/commit/aff647c70b8435608d3543e9ac1435d755747c23))
+
 ## [1.4.0](https://github.com/locus313/github-api-scripts/compare/v1.3.1...v1.4.0) (2026-07-09)
 
 
