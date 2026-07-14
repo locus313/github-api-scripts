@@ -217,7 +217,7 @@ fetch_seats() {
 }
 
 # ── Microsoft Graph helpers ───────────────────────────────────────────────────
-declare -A _GRAPH_CACHE
+declare -A _GRAPH_CACHE=()
 
 # graph_user_info EMAIL_OR_UPN
 # Returns JSON: {department, jobTitle, displayName, mail}
@@ -278,6 +278,45 @@ print_status "Found ${SEAT_COUNT} unique licensed user(s)  ($(echo "$SEATS_RAW" 
 # Enterprise seats endpoint has no total_seats field; use unique user count.
 TOTAL_ASSIGNED_SEATS=$SEAT_COUNT
 
+# When 0 seats are returned, probe the endpoint directly to distinguish a genuine
+# empty result (HTTP 200) from a silent auth/validation failure. gh_api_paginate
+# swallows 404/422, so this probe is the only way to surface those to the user.
+if [[ "$SEAT_COUNT" -eq 0 ]]; then
+    _probe_headers=$(mktemp)
+    _probe_code=$(curl -s -D "$_probe_headers" -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2026-03-10" \
+        "${API_URL_PREFIX}/enterprises/${GITHUB_ENTERPRISE}/copilot/billing/seats?per_page=1")
+    # X-OAuth-Scopes is only present for classic PATs; empty for fine-grained PATs / GitHub Apps.
+    _token_scopes=$(grep -i "^x-oauth-scopes:" "$_probe_headers" | head -1 | cut -d: -f2- | tr -d ' \r' || true)
+    rm -f "$_probe_headers"
+
+    case "$_probe_code" in
+        200)
+            print_status "Seats endpoint returned HTTP 200 — enterprise has 0 Copilot seats assigned."
+            ;;
+        404)
+            # GitHub returns 404 (not 403) on billing endpoints when manage_billing:enterprise scope is absent.
+            if [[ -n "$_token_scopes" ]] && echo "$_token_scopes" | tr ',' '\n' | grep -q "manage_billing:enterprise"; then
+                print_error "HTTP 404 — scopes look correct; verify enterprise slug '${GITHUB_ENTERPRISE}'."
+            else
+                print_error "HTTP 404 — likely missing 'manage_billing:enterprise' scope (GitHub returns 404, not 403, for this)."
+                print_error "Fix: classic PAT with read:enterprise + manage_billing:enterprise, or: gh auth refresh --scopes manage_billing:enterprise"
+                [[ -n "$_token_scopes" ]] && print_error "Current scopes: ${_token_scopes}"
+            fi
+            exit 1
+            ;;
+        422)
+            print_error "Seats endpoint returned HTTP 422 — token may lack manage_billing:enterprise scope or the slug is invalid."
+            exit 1
+            ;;
+        *)
+            print_warning "Seats endpoint returned HTTP ${_probe_code} — seat data may be incomplete."
+            ;;
+    esac
+fi
+
 # ── Fetch per-user AI credit consumption (billing API, current month) ──────────
 # Calls GET /enterprises/{slug}/settings/billing/ai_credit/usage?user={login}
 # for each licensed user and sums grossQuantity across all usageItems.
@@ -285,9 +324,9 @@ TOTAL_ASSIGNED_SEATS=$SEAT_COUNT
 _BILLING_YEAR=$(date +%Y)
 _BILLING_MONTH=$(( 10#$(date +%m) ))   # strip leading zero (macOS compatible)
 print_status "Fetching per-user AI credit consumption (billing API, ${_BILLING_YEAR}-$(printf '%02d' $_BILLING_MONTH))..."
-declare -A USER_CREDITS_USED
-declare -A USER_MODEL_CREDITS   # key: "login|model"  value: credits
-declare -A _ALL_MODELS_SET      # keys are unique model names seen
+declare -A USER_CREDITS_USED=()
+declare -A USER_MODEL_CREDITS=()   # key: "login|model"  value: credits
+declare -A _ALL_MODELS_SET=()      # keys are unique model names seen
 _billing_ok=true
 _billing_fail_statuses=""
 
@@ -365,8 +404,8 @@ printf '%s\n' \
     > "$OUTPUT_CSV"
 
 # ── Per-department counters ───────────────────────────────────────────────────
-declare -A DEPT_USERS
-declare -A DEPT_CREDITS
+declare -A DEPT_USERS=()
+declare -A DEPT_CREDITS=()
 TOTAL_CREDITS=0
 
 # ── Process each seat ────────────────────────────────────────────────────────
@@ -451,6 +490,7 @@ echo ""
 printf "  %-38s %7s %16s\n" "Department" "Users" "Allocated Credits"
 printf "  %-38s %7s %16s\n" "──────────────────────────────────────" "───────" "────────────────"
 while IFS= read -r dept; do
+    [[ -z "$dept" ]] && continue   # bash 5.3: ${!assoc[@]} on empty array expands to ""
     printf "  %-38s %7d %16d\n" "$dept" "${DEPT_USERS[$dept]:-0}" "${DEPT_CREDITS[$dept]:-0}"
 done < <(printf '%s\n' "${!DEPT_USERS[@]}" | sort)
 printf "  %-38s %7s %16s\n" "──────────────────────────────────────" "───────" "────────────────"
