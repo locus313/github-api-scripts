@@ -27,6 +27,10 @@ inputs:
     description: 'Skip Entra ID department lookup'
     required: false
     default: 'false'
+  no-budgets:
+    description: 'Skip per-user AI credit budget lookup (Universal/Individual)'
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -42,4 +46,5 @@ runs:
         ARGS=()
         [[ -n "${{ inputs.output }}" ]]   && ARGS+=(--output "${{ inputs.output }}")
         [[ "${{ inputs.no-entra }}" == "true" ]] && ARGS+=(--no-entra)
+        [[ "${{ inputs.no-budgets }}" == "true" ]] && ARGS+=(--no-budgets)
         "${{ github.action_path }}/github-copilot-report.sh" "${ARGS[@]}"
