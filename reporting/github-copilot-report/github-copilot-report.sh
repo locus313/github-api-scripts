@@ -18,6 +18,8 @@
 #   • Every user with a Copilot seat, their plan type, and their pool contribution
 #     (credits per assigned seat — credits are pooled at the enterprise level)
 #   • Actual per-user AI credit consumption this month (from billing API)
+#   • Each user's effective AI credit budget (Individual override, else Universal)
+#     and how much of it has been consumed (from the Budgets API)
 #   • Users grouped by Entra ID department
 #   • Enterprise-level model usage breakdown
 #
@@ -30,6 +32,19 @@
 #
 # Requires API version 2026-03-10 and the new Copilot usage metrics endpoints.
 # The legacy /copilot/metrics and /copilot/usage endpoints were closed Apr 2, 2026.
+#
+# User-level AI credit budgets (GitHub Budgets API, enterprise-scoped):
+#   GET /enterprises/{enterprise}/settings/billing/budgets
+#   GET /enterprises/{enterprise}/settings/billing/budgets/{budget_id}/user-states
+#   Universal budget  (budget_scope=multi_user_customer) applies to every user
+#                      unless overridden.
+#   Individual budget (budget_scope=user) overrides the Universal budget for
+#                      one specific user.
+#   Both are configured via Enterprise → Policies → Copilot → Budgets → Users.
+#   The user-states endpoint returns each user's effective target/consumed
+#   amount plus an override_budget_id when an Individual budget applies.
+#   Requires the token owner to be an enterprise admin or billing manager.
+#   Use --no-budgets to skip.
 # =============================================================================
 
 set -euo pipefail
@@ -47,6 +62,7 @@ ENTRA_TENANT="${ENTRA_TENANT:-}"
 CREDITS_PER_SEAT_OVERRIDE="${CREDITS_PER_SEAT_OVERRIDE:-}"
 OUTPUT_CSV="copilot-report-$(date +%Y%m%d).csv"
 NO_ENTRA=false
+NO_BUDGETS=false
 GRAPH_TOKEN=""
 ENTRA_ENABLED=false
 
@@ -113,6 +129,7 @@ Options:
                          Use if your portal shows a different pool size than expected
       --output FILE      Output CSV (default: copilot-report-YYYYMMDD.csv)
       --no-entra         Skip Entra ID department lookup
+      --no-budgets       Skip per-user AI credit budget lookup (Universal/Individual)
   -h, --help             Show this message
 
 Required GITHUB_TOKEN scopes:
@@ -133,6 +150,7 @@ while [[ $# -gt 0 ]]; do
         --credits)        CREDITS_PER_SEAT_OVERRIDE="$2";  shift 2 ;;
         --output)         OUTPUT_CSV="$2";                 shift 2 ;;
         --no-entra)       NO_ENTRA=true;                   shift   ;;
+        --no-budgets)     NO_BUDGETS=true;                 shift   ;;
         -h|--help)        usage; exit 0                             ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
     esac
@@ -368,6 +386,82 @@ else
         print_warning "Failed users:${_billing_fail_statuses}"
 fi
 
+# ── Fetch enterprise AI credit budgets (Budgets API: Universal / Individual) ─
+# Two calls total (each paginated), not one per user:
+#   1. GET /enterprises/{enterprise}/settings/billing/budgets — locates the
+#      Universal (multi_user_customer) budget and any direct Individual
+#      (user-scope) budgets.
+#   2. GET .../budgets/{universal_id}/user-states — per-user consumed/target
+#      amounts against the Universal budget; override_budget_id marks users
+#      who have an Individual override.
+declare -A USER_BUDGET_SCOPE=()    # "Individual" | "Universal" | "None"
+declare -A USER_BUDGET_AMOUNT=()   # USD
+declare -A USER_BUDGET_USED=()     # USD
+
+if [[ "$NO_BUDGETS" == "true" ]]; then
+    print_warning "AI credit budget lookup disabled (--no-budgets)."
+else
+    print_status "Fetching enterprise AI credit budgets (Universal / Individual)..."
+
+    _all_budgets="[]"
+    _page=1
+    while :; do
+        _bresp=$(gh_api "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/budgets?per_page=100&page=${_page}" --api-version 2026-03-10) || _bresp=""
+        [[ "${_bresp}" == "__404__" || "${_bresp}" == "__422__" || -z "$_bresp" ]] && break
+        _all_budgets=$(jq -cn --argjson a "$_all_budgets" --argjson b "$(echo "$_bresp" | jq -c '.budgets // []')" '$a + $b')
+        [[ "$(echo "$_bresp" | jq -r '.has_next_page // false')" == "true" ]] || break
+        _page=$(( _page + 1 ))
+    done
+
+    _ai_budgets=$(echo "$_all_budgets" | jq -c '[.[] | select(.budget_product_sku=="ai_credits")]')
+
+    # Direct Individual (user-scope) budgets — covers the case where no Universal budget exists.
+    while IFS=$'\t' read -r _u _amt _used; do
+        [[ -z "$_u" ]] && continue
+        USER_BUDGET_SCOPE["$_u"]="Individual"
+        USER_BUDGET_AMOUNT["$_u"]="$_amt"
+        USER_BUDGET_USED["$_u"]="$_used"
+    done < <(echo "$_ai_budgets" | jq -r '.[] | select(.budget_scope=="user") | [.user, .budget_amount, (.effective_budget.consumed_amount // .consumed_amount // 0)] | @tsv')
+
+    _universal_id=$(echo "$_ai_budgets" | jq -r '[.[] | select(.budget_scope=="multi_user_customer")][0].id // empty')
+    _universal_amount=$(echo "$_ai_budgets" | jq -r '[.[] | select(.budget_scope=="multi_user_customer")][0].budget_amount // empty')
+
+    if [[ -n "$_universal_id" ]]; then
+        _page=1
+        while :; do
+            _sresp=$(gh_api "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/budgets/${_universal_id}/user-states?per_page=100&page=${_page}" --api-version 2026-03-10) || _sresp=""
+            [[ "${_sresp}" == "__404__" || "${_sresp}" == "__422__" || -z "$_sresp" ]] && break
+            while IFS=$'\t' read -r _u _consumed _target _override; do
+                [[ -z "$_u" ]] && continue
+                if [[ -n "$_override" && "$_override" != "null" ]]; then
+                    USER_BUDGET_SCOPE["$_u"]="Individual"
+                else
+                    USER_BUDGET_SCOPE["$_u"]="Universal"
+                fi
+                USER_BUDGET_AMOUNT["$_u"]="$_target"
+                USER_BUDGET_USED["$_u"]="$_consumed"
+            done < <(echo "$_sresp" | jq -r '.user_states[]? | [.user, .consumed_amount, .target_amount, (.override_budget_id // "")] | @tsv')
+            [[ "$(echo "$_sresp" | jq -r '.has_next_page // false')" == "true" ]] || break
+            _page=$(( _page + 1 ))
+        done
+
+        # Licensed users covered by the Universal budget but absent from user-states (no usage yet)
+        while IFS= read -r _login; do
+            [[ -z "$_login" ]] && continue
+            [[ -n "${USER_BUDGET_SCOPE[$_login]+_}" ]] && continue
+            USER_BUDGET_SCOPE["$_login"]="Universal"
+            USER_BUDGET_AMOUNT["$_login"]="$_universal_amount"
+            USER_BUDGET_USED["$_login"]="0"
+        done <<< "$_ALL_LOGINS"
+    fi
+
+    if [[ "${#USER_BUDGET_SCOPE[@]}" -gt 0 ]]; then
+        print_status "Loaded budget data for ${#USER_BUDGET_SCOPE[@]} user(s)."
+    else
+        print_warning "No enterprise AI credit budgets are configured (Enterprise → Policies → Copilot → Budgets), or the token lacks enterprise admin/billing manager access."
+    fi
+fi
+
 # Build sorted list of all model names seen across all users
 ALL_MODELS=()
 while IFS= read -r _m; do
@@ -400,7 +494,7 @@ fi
 # ── Write CSV header ──────────────────────────────────────────────────────────
 _model_header_cols=$(printf ',"Credits: %s"' "${ALL_MODELS[@]}")
 printf '%s\n' \
-    "GitHub Login,Display Name,Email / UPN,Organisation,Plan Type,Pool Contribution (Credits/Seat),AI Credits Used (Month)${_model_header_cols},Department,Job Title,Last Active,Last Editor" \
+    "GitHub Login,Display Name,Email / UPN,Organisation,Plan Type,Pool Contribution (Credits/Seat),AI Credits Used (Month),Budget Scope,Budget Limit (USD),Budget Used (USD),Budget Remaining (USD)${_model_header_cols},Department,Job Title,Last Active,Last Editor" \
     > "$OUTPUT_CSV"
 
 # ── Per-department counters ───────────────────────────────────────────────────
@@ -423,6 +517,13 @@ while IFS= read -r seat; do
     credits=$(plan_credits "$plan")
     credits_used="${USER_CREDITS_USED[$login]:-}"
 
+    budget_scope="${USER_BUDGET_SCOPE[$login]:-None}"
+    budget_amount="${USER_BUDGET_AMOUNT[$login]:-}"
+    budget_used="${USER_BUDGET_USED[$login]:-}"
+    budget_remaining=""
+    [[ "$budget_scope" != "None" ]] && \
+        budget_remaining=$(awk -v a="${budget_amount:-0}" -v u="${budget_used:-0}" 'BEGIN{printf "%.2f", a-u}')
+
     # Prefer email; fall back to UPN derived from login + --upn-domain
     if [[ -n "$email" ]]; then
         lookup="$email"
@@ -439,7 +540,7 @@ while IFS= read -r seat; do
     [[ -z "$disp" ]] && disp="$gh_name"
 
     # Append to CSV — double-quote all fields, escape embedded quotes
-    printf '"%s","%s","%s","%s","%s","%s","%s"' \
+    printf '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' \
         "${login//\"/\"\"}" \
         "${disp//\"/\"\"}" \
         "${lookup//\"/\"\"}" \
@@ -447,6 +548,10 @@ while IFS= read -r seat; do
         "${plan//\"/\"\"}" \
         "$credits" \
         "${credits_used}" \
+        "${budget_scope}" \
+        "${budget_amount}" \
+        "${budget_used}" \
+        "${budget_remaining}" \
         >> "$OUTPUT_CSV"
     # Per-model credit columns (0 if user had no usage on that model)
     for _m in "${ALL_MODELS[@]}"; do

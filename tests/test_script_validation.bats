@@ -486,6 +486,12 @@ _run_script() {
   [ "$status" -eq 0 ]
 }
 
+@test "github-copilot-report: --no-budgets is recognised (fails at token check)" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-report/github-copilot-report.sh" "unset GITHUB_TOKEN;" "--no-budgets"
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"Unknown option"* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # personal/github-organize-stars
 # ═══════════════════════════════════════════════════════════════════════════════
