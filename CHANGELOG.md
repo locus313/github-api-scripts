@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.4.2](https://github.com/locus313/github-api-scripts/compare/v1.4.1...v1.4.2) (2026-08-05)
+
+
+### Code Refactoring
+
+* extract is_bsd_date helper to lib/github-common.sh ([#54](https://github.com/locus313/github-api-scripts/issues/54)) ([7d2ed18](https://github.com/locus313/github-api-scripts/commit/7d2ed18231565a6c2ddcac2aebf40ab745b47ed6))
+
 ## [1.4.1](https://github.com/locus313/github-api-scripts/compare/v1.4.0...v1.4.1) (2026-07-14)
 
 
