@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.4.3](https://github.com/locus313/github-api-scripts/compare/v1.4.2...v1.4.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* standardize CSV/report output locations across scripts ([#56](https://github.com/locus313/github-api-scripts/issues/56)) ([9de57d0](https://github.com/locus313/github-api-scripts/commit/9de57d02fc0f8db261a76f8fbbbc649be62b9c48))
+
+
+### Code Refactoring
+
+* extract csv_escape helper to lib/github-common.sh ([#57](https://github.com/locus313/github-api-scripts/issues/57)) ([cf3111a](https://github.com/locus313/github-api-scripts/commit/cf3111a7a0b0b22979e6cbf45f7983eecab442ae))
+
 ## [1.4.2](https://github.com/locus313/github-api-scripts/compare/v1.4.1...v1.4.2) (2026-08-05)
 
 
