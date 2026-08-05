@@ -102,6 +102,20 @@ _mock_curl() {
   fi
 }
 
+# ─── csv_escape ───────────────────────────────────────────────────────────────
+
+@test "csv_escape: leaves plain values unchanged" {
+  run bash -c "GITHUB_TOKEN=x source '${LIB_PATH}' 2>/dev/null; csv_escape 'plain value'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "plain value" ]
+}
+
+@test "csv_escape: doubles embedded double-quotes" {
+  run bash -c "GITHUB_TOKEN=x source '${LIB_PATH}' 2>/dev/null; csv_escape 'she said \"hi\"'"
+  [ "$status" -eq 0 ]
+  [ "$output" = 'she said ""hi""' ]
+}
+
 # ─── require_env_var ──────────────────────────────────────────────────────────
 
 @test "require_env_var: exits 1 when variable is unset" {

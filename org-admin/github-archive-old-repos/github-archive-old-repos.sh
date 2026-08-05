@@ -113,7 +113,7 @@ fetch_old_repos() {
                 REPO_HTMLURL=$(echo "$REPO_PAYLOAD"  | jq -r .html_url)
                 REPO_DESCRIPTION=$(echo "$REPO_PAYLOAD" | jq -r .description)
                 REPO_FORK=$(echo "$REPO_PAYLOAD"     | jq -r .fork)
-                ESCAPED_DESC=$(echo "$REPO_DESCRIPTION" | sed 's/"/""/g')
+                ESCAPED_DESC=$(csv_escape "$REPO_DESCRIPTION")
                 echo "${REPO_NAME},${REPO_FULLNAME},${REPO_PRIVATE},${REPO_ARCHIVED},${REPO_HTMLURL},\"${ESCAPED_DESC}\",${REPO_FORK},${REPO_UPDATEDAT},${DAYS_SINCE}" >> "$REPORT_FILE"
 
                 total_old_repos=$((total_old_repos + 1))

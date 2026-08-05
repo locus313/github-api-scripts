@@ -93,7 +93,7 @@ bats tests/test_common.bats
 
 | File | What it covers |
 |------|----------------|
-| `tests/test_common.bats` | `lib/github-common.sh` — pure-logic functions (`validate_slug`, `require_env_var`, `require_command`, `err`, `configure_gh_auth`, `validate_token`, `get_repo_page_count`, `is_bsd_date`) and API helpers (`gh_api` sentinels, `gh_api_paginate`) |
+| `tests/test_common.bats` | `lib/github-common.sh` — pure-logic functions (`validate_slug`, `require_env_var`, `require_command`, `err`, `configure_gh_auth`, `validate_token`, `get_repo_page_count`, `is_bsd_date`, `csv_escape`) and API helpers (`gh_api` sentinels, `gh_api_paginate`) |
 | `tests/test_script_validation.bats` | Every script — missing required env vars exit 1, invalid CLI args exit 1, `--help` exits 0, script-specific enum/allowlist validation |
 | `tests/mock_curl.sh` | Universal drop-in curl mock (used by both test files); response data via env vars `MOCK_CURL_CODE`, `MOCK_CURL_BODY`, `MOCK_CURL_LINK` |
 
