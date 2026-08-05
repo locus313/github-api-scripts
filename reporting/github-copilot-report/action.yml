@@ -20,9 +20,13 @@ inputs:
     required: false
     default: ''
   output:
-    description: 'Output CSV file path (default: copilot-report-YYYYMMDD.csv)'
+    description: 'Output CSV file path (default: $REPORT_DIR/copilot-report-YYYYMMDD.csv)'
     required: false
     default: ''
+  report-dir:
+    description: 'Output directory for the CSV report when output is not given'
+    required: false
+    default: './reports'
   no-entra:
     description: 'Skip Entra ID department lookup'
     required: false
@@ -42,6 +46,7 @@ runs:
         UPN_DOMAIN: ${{ inputs.upn-domain }}
         ENTRA_TENANT: ${{ inputs.entra-tenant }}
         CREDITS_PER_SEAT_OVERRIDE: ${{ inputs.credits }}
+        REPORT_DIR: ${{ inputs.report-dir }}
       run: |
         ARGS=()
         [[ -n "${{ inputs.output }}" ]]   && ARGS+=(--output "${{ inputs.output }}")

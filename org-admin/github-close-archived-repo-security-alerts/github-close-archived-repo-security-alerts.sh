@@ -21,6 +21,7 @@
 #   DEPENDABOT_REASON              Optional. Dismiss reason for Dependabot alerts (default: tolerable_risk)
 #   CODE_SCANNING_REASON           Optional. Dismiss reason for code scanning (default: won't fix)
 #   SECRET_SCANNING_RESOLUTION     Optional. Resolution for secret scanning (default: wont_fix)
+#   REPORT_DIR                     Optional. Output directory for the CSV report (default: ./reports)
 #
 # Requirements:
 #   - curl
@@ -40,8 +41,8 @@ GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-REPORTS_DIR="$(dirname "$0")/reports"
-REPORT_FILE="${REPORTS_DIR}/security_alerts_closed_${TIMESTAMP}.csv"
+REPORT_DIR="${REPORT_DIR:-./reports}"
+REPORT_FILE="${REPORT_DIR}/security_alerts_closed_${TIMESTAMP}.csv"
 
 # Dismiss/resolve reasons — override via env if needed
 DEPENDABOT_REASON=${DEPENDABOT_REASON:-'tolerable_risk'}       # fix_started | inaccurate | no_bandwidth | not_used | tolerable_risk
@@ -117,7 +118,7 @@ TOTAL_ERRORS=0
 ## CSV REPORT HEADER
 ###
 if [ "${DRY_RUN}" = false ]; then
-  mkdir -p "${REPORTS_DIR}"
+  mkdir -p "${REPORT_DIR}"
   echo "timestamp,org,repo,alert_type,alert_number,alert_summary,action" > "${REPORT_FILE}"
 fi
 

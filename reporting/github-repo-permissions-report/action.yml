@@ -15,6 +15,10 @@ inputs:
     description: 'Output CSV file path'
     required: false
     default: ''
+  report-dir:
+    description: 'Output directory for the CSV report when output is not given'
+    required: false
+    default: './reports'
 runs:
   using: composite
   steps:
@@ -22,6 +26,7 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token || github.token }}
+        REPORT_DIR: ${{ inputs.report-dir }}
       run: |
         ARGS=(-r "${{ inputs.repo }}")
         [[ -n "${{ inputs.branch }}" ]] && ARGS+=(-b "${{ inputs.branch }}")

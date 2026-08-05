@@ -330,6 +330,7 @@ cd org-admin/github-archive-old-repos
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `YEARS_THRESHOLD` | Age threshold in years | `5` |
+| `REPORT_DIR` | Output directory for the CSV report | `./reports` |
 
 ---
 
@@ -409,6 +410,7 @@ cd org-admin/github-close-archived-repo-security-alerts
 | `DEPENDABOT_REASON` | Dismiss reason for Dependabot alerts | `tolerable_risk` |
 | `CODE_SCANNING_REASON` | Dismiss reason for code scanning alerts | `won't fix` |
 | `SECRET_SCANNING_RESOLUTION` | Resolution for secret scanning alerts | `wont_fix` |
+| `REPORT_DIR` | Output directory for the CSV report | `./reports` |
 
 **What it does:**
 - Enumerates all repositories in the organization
@@ -561,7 +563,11 @@ cd reporting/github-repo-permissions-report
 |------|-------------|----------|
 | `-r, --repo OWNER/REPO` | Target repository (required) | — |
 | `-b, --branch NAME` | Branch to evaluate | Repository default branch |
-| `-o, --output FILE` | Output CSV path | `OWNER-REPO-permissions-BRANCH-YYYYMMDD.csv` |
+| `-o, --output FILE` | Output CSV path | `$REPORT_DIR/OWNER-REPO-permissions-BRANCH-YYYYMMDD.csv` |
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REPORT_DIR` | Output directory for the CSV report when `-o/--output` is not given | `./reports` |
 
 **What it does:**
 - Fetches all collaborators and teams with repository access
@@ -617,9 +623,13 @@ az login   # optional; needed only for Entra ID department enrichment
 | `-e, --enterprise SLUG` | GitHub Enterprise slug (or `$GITHUB_ENTERPRISE`) | — |
 | `-d, --upn-domain DOM` | Email domain for Entra lookup when GitHub carries no email (or `$UPN_DOMAIN`) | — |
 | `--credits N` | Override credits-per-seat value (or `$CREDITS_PER_SEAT_OVERRIDE`) | Auto-detected |
-| `--output FILE` | Output CSV filename | `copilot-report-YYYYMMDD.csv` |
+| `--output FILE` | Output CSV filename | `$REPORT_DIR/copilot-report-YYYYMMDD.csv` |
 | `--no-entra` | Skip Entra ID department lookup | — |
 | `--no-budgets` | Skip per-user AI credit budget lookup (Universal/Individual) | — |
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REPORT_DIR` | Output directory for the CSV report when `--output` is not given | `./reports` |
 
 **What it does:**
 - Fetches all Copilot seats across the enterprise (deduplicated by user)
