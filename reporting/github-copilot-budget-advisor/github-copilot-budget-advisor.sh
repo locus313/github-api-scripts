@@ -124,7 +124,7 @@ _CURR_YEAR=$(date +%Y)
 _CURR_MONTH=$(( 10#$(date +%m) ))   # strip leading zero for arithmetic
 _CURR_DAY=$(( 10#$(date +%d) ))
 
-if date -v-1m +%Y >/dev/null 2>&1; then
+if is_bsd_date; then
     # BSD date (macOS)
     _PREV_YEAR=$(date -v-1m +%Y)
     _PREV_MONTH=$(( 10#$(date -v-1m +%m) ))

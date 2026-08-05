@@ -54,7 +54,7 @@ trap cleanup EXIT
 ###
 calculate_cutoff_date() {
     # Using 'date' compatible with both GNU (Linux) and BSD (macOS)
-    if date -v-1d > /dev/null 2>&1; then
+    if is_bsd_date; then
         # BSD date (macOS)
         CUTOFF_DATE=$(date -u -v-${YEARS_THRESHOLD}y +"%Y-%m-%dT%H:%M:%SZ")
     else
@@ -98,7 +98,7 @@ fetch_old_repos() {
 
             if [[ "$REPO_UPDATEDAT" < "$cutoff_date" ]]; then
                 local UPDATED_EPOCH CURRENT_EPOCH DAYS_SINCE
-                if date -v-1d > /dev/null 2>&1; then
+                if is_bsd_date; then
                     UPDATED_EPOCH=$(date -jf "%Y-%m-%dT%H:%M:%SZ" "$REPO_UPDATEDAT" +%s 2>/dev/null || echo "0")
                 else
                     UPDATED_EPOCH=$(date -d "$REPO_UPDATEDAT" +%s 2>/dev/null || echo "0")
