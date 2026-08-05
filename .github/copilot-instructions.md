@@ -33,6 +33,7 @@ Provides reusable helpers sourced by scripts:
 | `validate_github_token [bearer]` | Verify GITHUB_TOKEN via /user endpoint |
 | `validate_slug <value> <label>` | Reject values with non-alphanumeric/hyphen/underscore chars |
 | `is_bsd_date` | Returns 0 if `date` is BSD-style (macOS), 1 for GNU (Linux); branch between `date -v` and `date -d` syntax |
+| `csv_escape <value>` | Doubles embedded double-quotes for a quoted CSV field |
 | `gh_api <path> [--api-version V] [curl args...]` | Bearer-auth REST helper with 5-retry rate-limit handling; optional `--api-version` overrides the default `2022-11-28` header; returns literal `__404__` or `__422__` for those HTTP statuses — callers must check for these sentinels |
 | `gh_api_paginate <path> [filter] [version]` | Paginated REST helper, follows Link headers, streams items; returns silently with empty output on 404/422 |
 | `get_enterprise_orgs` | Three-tier enterprise org resolver (REST → GraphQL → /user/orgs) |

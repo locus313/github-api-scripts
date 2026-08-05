@@ -19,6 +19,7 @@
 #   validate_token <VAR_NAME>                 — verify a secondary token variable
 #   validate_slug <value> [label]             — exit if value contains unsafe chars
 #   is_bsd_date                                — 0 if `date` is BSD-style (macOS), 1 for GNU (Linux)
+#   csv_escape <value>                         — doubles embedded double-quotes for a quoted CSV field
 #   gh_api <path|url> [--api-version V] [curl args…] — Bearer-auth REST helper with retry;
 #                                               returns "__404__"/"__422__" (exit 0) for those codes
 #   gh_api_paginate <path> [filter] [version] — paginated REST, follows Link headers;
@@ -161,6 +162,15 @@ get_repo_page_count() {
 ###
 is_bsd_date() {
   date -v-1d > /dev/null 2>&1
+}
+
+###
+## csv_escape <value>
+## Doubles embedded double-quotes so a value is safe to wrap in a quoted
+## CSV field (e.g. printf '"%s"' "$(csv_escape "$value")").
+###
+csv_escape() {
+  echo "$1" | sed 's/"/""/g'
 }
 
 ###

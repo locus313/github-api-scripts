@@ -188,13 +188,13 @@ parse_dockerfile_content() {
 
     # Sanitize fields for CSV (escape double-quotes, wrap in quotes)
     local safe_path safe_url
-    safe_path=$(echo "${dockerfile_path}" | sed 's/"/""/g')
-    safe_url=$(echo "${html_url}" | sed 's/"/""/g')
+    safe_path=$(csv_escape "${dockerfile_path}")
+    safe_url=$(csv_escape "${html_url}")
     local safe_image safe_tag safe_digest safe_base
-    safe_image=$(echo "${image}" | sed 's/"/""/g')
-    safe_tag=$(echo "${tag}" | sed 's/"/""/g')
-    safe_digest=$(echo "${digest}" | sed 's/"/""/g')
-    safe_base=$(echo "${base_image}" | sed 's/"/""/g')
+    safe_image=$(csv_escape "${image}")
+    safe_tag=$(csv_escape "${tag}")
+    safe_digest=$(csv_escape "${digest}")
+    safe_base=$(csv_escape "${base_image}")
     local repo_name
     repo_name=$(echo "${repo_full_name}" | cut -d/ -f2)
 

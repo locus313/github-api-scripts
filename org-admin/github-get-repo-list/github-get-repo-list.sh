@@ -71,7 +71,7 @@ process_repos () {
       REPO_PUSHEDAT=$(echo "${REPO_PAYLOAD}" | jq -r .pushed_at)
       REPO_CREATEDAT=$(echo "${REPO_PAYLOAD}" | jq -r .created_at)
       REPO_UPDATEDAT=$(echo "${REPO_PAYLOAD}" | jq -r .updated_at)
-      ESCAPED_DESCRIPTION=$(echo "${REPO_DESCRIPTION}" | sed 's/"/""/g')
+      ESCAPED_DESCRIPTION=$(csv_escape "${REPO_DESCRIPTION}")
 
       printf '%s,%s,%s,%s,%s,"%s",%s,%s,%s,%s\n' \
         "${i}" "${REPO_FULLNAME}" "${REPO_OWNER}" "${REPO_PRIVATE}" "${REPO_HTMLURL}" \
