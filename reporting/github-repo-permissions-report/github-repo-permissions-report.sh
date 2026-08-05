@@ -14,6 +14,8 @@
 #   GITHUB_TOKEN    Required. PAT with repo and read:org scope
 #                   (or provided automatically from an active gh auth session)
 #   API_URL_PREFIX  Optional. GitHub API base URL (default: https://api.github.com)
+#   REPORT_DIR      Optional. Output directory for the CSV report when -o/--output
+#                   is not given (default: ./reports)
 #
 # Requirements:
 #   - curl
@@ -27,6 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../lib/github-common.sh"
 
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
+REPORT_DIR=${REPORT_DIR:-'./reports'}
 REPO=""
 BRANCH=""
 OUTPUT_CSV=""
@@ -104,7 +107,8 @@ if [[ -z "$BRANCH" ]]; then
 fi
 
 if [[ -z "$OUTPUT_CSV" ]]; then
-  OUTPUT_CSV="${REPO//\//-}-permissions-${BRANCH}-$(date +%Y%m%d).csv"
+  mkdir -p "$REPORT_DIR"
+  OUTPUT_CSV="${REPORT_DIR}/${REPO//\//-}-permissions-${BRANCH}-$(date +%Y%m%d).csv"
 fi
 
 print_status "Fetching collaborators..."

@@ -45,6 +45,9 @@
 #   amount plus an override_budget_id when an Individual budget applies.
 #   Requires the token owner to be an enterprise admin or billing manager.
 #   Use --no-budgets to skip.
+#
+# REPORT_DIR (optional, default: ./reports) — output directory for the CSV
+# report when --output is not given.
 # =============================================================================
 
 set -euo pipefail
@@ -60,7 +63,8 @@ API_URL_PREFIX="${API_URL_PREFIX:-https://api.github.com}"
 UPN_DOMAIN="${UPN_DOMAIN:-}"
 ENTRA_TENANT="${ENTRA_TENANT:-}"
 CREDITS_PER_SEAT_OVERRIDE="${CREDITS_PER_SEAT_OVERRIDE:-}"
-OUTPUT_CSV="copilot-report-$(date +%Y%m%d).csv"
+REPORT_DIR="${REPORT_DIR:-./reports}"
+OUTPUT_CSV=""
 NO_ENTRA=false
 NO_BUDGETS=false
 GRAPH_TOKEN=""
@@ -127,7 +131,7 @@ Options:
                          when not set; only needed to override that result.
       --credits N        Override credits-per-seat value  (or $CREDITS_PER_SEAT_OVERRIDE)
                          Use if your portal shows a different pool size than expected
-      --output FILE      Output CSV (default: copilot-report-YYYYMMDD.csv)
+      --output FILE      Output CSV (default: $REPORT_DIR/copilot-report-YYYYMMDD.csv)
       --no-entra         Skip Entra ID department lookup
       --no-budgets       Skip per-user AI credit budget lookup (Universal/Individual)
   -h, --help             Show this message
@@ -164,6 +168,11 @@ require_command jq
 
 require_env_var GITHUB_TOKEN
 validate_github_token "bearer"
+
+if [[ -z "$OUTPUT_CSV" ]]; then
+    mkdir -p "$REPORT_DIR"
+    OUTPUT_CSV="${REPORT_DIR}/copilot-report-$(date +%Y%m%d).csv"
+fi
 
 # ── Acquire Microsoft Graph token via az CLI ──────────────────────────────────
 if [[ "$NO_ENTRA" == "true" ]]; then

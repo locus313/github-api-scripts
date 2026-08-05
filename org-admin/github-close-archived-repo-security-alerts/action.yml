@@ -31,6 +31,10 @@ inputs:
     description: 'GitHub API base URL'
     required: false
     default: 'https://api.github.com'
+  report-dir:
+    description: 'Output directory for the CSV report'
+    required: false
+    default: './reports'
 runs:
   using: composite
   steps:
@@ -43,6 +47,7 @@ runs:
         CODE_SCANNING_REASON: ${{ inputs.code-scanning-reason }}
         SECRET_SCANNING_RESOLUTION: ${{ inputs.secret-scanning-resolution }}
         API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+        REPORT_DIR: ${{ inputs.report-dir }}
       run: |
         ARGS=(--type "${{ inputs.type }}")
         [[ "${{ inputs.dry-run }}" == "true" ]] && ARGS+=(--dry-run)

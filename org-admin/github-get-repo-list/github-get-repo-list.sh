@@ -75,11 +75,10 @@ process_repos () {
 
       printf '%s,%s,%s,%s,%s,"%s",%s,%s,%s,%s\n' \
         "${i}" "${REPO_FULLNAME}" "${REPO_OWNER}" "${REPO_PRIVATE}" "${REPO_HTMLURL}" \
-        "${ESCAPED_DESCRIPTION}" "${REPO_FORK}" "${REPO_PUSHEDAT}" "${REPO_CREATEDAT}" "${REPO_UPDATEDAT}" \
-        >> repo-list.csv
+        "${ESCAPED_DESCRIPTION}" "${REPO_FORK}" "${REPO_PUSHEDAT}" "${REPO_CREATEDAT}" "${REPO_UPDATEDAT}"
     done < <(echo "${repos_json}" | jq -r 'sort_by(.name) | .[] | .name')
   done
 }
 
-echo "name,full_name,owner,private,html_url,description,fork,pushed_at,created_at,updated_at" > repo-list.csv
+echo "name,full_name,owner,private,html_url,description,fork,pushed_at,created_at,updated_at"
 process_repos

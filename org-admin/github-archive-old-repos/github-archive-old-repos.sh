@@ -15,6 +15,7 @@
 #   GITHUB_TOKEN      Required. PAT with repo scope
 #   ORG               Required. GitHub organization name
 #   YEARS_THRESHOLD   Optional. Age threshold in years (default: 5)
+#   REPORT_DIR        Optional. Output directory for the CSV report (default: ./reports)
 #   API_URL_PREFIX    Optional. GitHub API base URL (default: https://api.github.com)
 #
 # Requirements:
@@ -36,7 +37,7 @@ ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 YEARS_THRESHOLD=${YEARS_THRESHOLD:-5}
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-REPORT_DIR="${REPORT_DIR:-$(dirname "$0")/reports}"
+REPORT_DIR="${REPORT_DIR:-./reports}"
 REPORT_FILE="${REPORT_DIR}/old_repos_${TIMESTAMP}.csv"
 TEMP_FILE=$(mktemp)
 
