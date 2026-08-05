@@ -937,6 +937,7 @@ All scripts can leverage a shared utility library for common operations like val
 - `validate_token <VAR_NAME> [bearer]` — Validate GitHub token by calling `/user` endpoint
 - `validate_github_token [bearer]` — Convenience wrapper for `GITHUB_TOKEN` validation
 - `validate_slug <value> <label>` — Exit if value contains characters other than alphanumeric, hyphen, or underscore
+- `is_bsd_date` — Return 0 if the system `date` is BSD-style (macOS), 1 for GNU (Linux); use to branch between `date -v` and `date -d` syntax
 
 **Auth helpers:**
 - `configure_gh_auth [scope_hint]` — Bridge `GITHUB_TOKEN→GH_TOKEN` for scripts that use the `gh` CLI, or verify an active `gh` auth session if no token is set

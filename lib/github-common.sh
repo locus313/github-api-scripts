@@ -18,6 +18,7 @@
 #   validate_github_token [bearer]            — verify GITHUB_TOKEN via /user endpoint
 #   validate_token <VAR_NAME>                 — verify a secondary token variable
 #   validate_slug <value> [label]             — exit if value contains unsafe chars
+#   is_bsd_date                                — 0 if `date` is BSD-style (macOS), 1 for GNU (Linux)
 #   gh_api <path|url> [--api-version V] [curl args…] — Bearer-auth REST helper with retry;
 #                                               returns "__404__"/"__422__" (exit 0) for those codes
 #   gh_api_paginate <path> [filter] [version] — paginated REST, follows Link headers;
@@ -151,6 +152,15 @@ get_repo_page_count() {
   pages=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -I "${url}" \
     | grep -Eo '&page=[0-9]+' | grep -Eo '[0-9]+' | tail -1)
   echo "${pages:-1}"
+}
+
+###
+## is_bsd_date
+## Returns 0 if the system `date` is BSD-style (macOS), 1 for GNU (Linux).
+## Use to branch between `date -v` and `date -d` syntax.
+###
+is_bsd_date() {
+  date -v-1d > /dev/null 2>&1
 }
 
 ###

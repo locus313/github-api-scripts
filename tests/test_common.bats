@@ -91,6 +91,17 @@ _mock_curl() {
   [ "$status" -eq 1 ]
 }
 
+# ─── is_bsd_date ──────────────────────────────────────────────────────────────
+
+@test "is_bsd_date: matches whether 'date -v' is supported on this system" {
+  run bash -c "GITHUB_TOKEN=x source '${LIB_PATH}' 2>/dev/null; is_bsd_date"
+  if date -v-1d > /dev/null 2>&1; then
+    [ "$status" -eq 0 ]
+  else
+    [ "$status" -eq 1 ]
+  fi
+}
+
 # ─── require_env_var ──────────────────────────────────────────────────────────
 
 @test "require_env_var: exits 1 when variable is unset" {
