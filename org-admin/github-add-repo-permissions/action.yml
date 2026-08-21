@@ -51,6 +51,10 @@ inputs:
     description: 'Space-separated repo names to skip for pull access'
     required: false
     default: ''
+  skip-archived:
+    description: 'Set to "true" to skip maintain/push/triage/pull permissions on archived repos (admin is still applied)'
+    required: false
+    default: 'false'
   api-url-prefix:
     description: 'GitHub API base URL'
     required: false
@@ -74,5 +78,6 @@ runs:
         REPO_PUSH_EXCLUDE: ${{ inputs.repo-push-exclude }}
         REPO_TRIAGE_EXCLUDE: ${{ inputs.repo-triage-exclude }}
         REPO_PULL_EXCLUDE: ${{ inputs.repo-pull-exclude }}
+        SKIP_ARCHIVED: ${{ inputs.skip-archived }}
         API_URL_PREFIX: ${{ inputs.api-url-prefix }}
       run: ${{ github.action_path }}/github-add-repo-permissions.sh

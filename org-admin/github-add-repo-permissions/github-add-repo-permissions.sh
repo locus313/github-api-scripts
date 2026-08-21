@@ -18,6 +18,8 @@
 #   GITHUB_TOKEN          Required. PAT with admin:org scope
 #   ORG                   Required. GitHub organization name
 #   REPO_NAME_FILTER      Optional. Prefix filter for repository names (default: all repos)
+#   SKIP_ARCHIVED         Optional. Set to "true" to skip maintain/push/triage/pull permissions on
+#                         archived repositories; admin permissions are still applied (default: false)
 #   REPO_ADMIN            Optional. Space-separated team slugs to grant admin access
 #   REPO_MAINTAIN         Optional. Space-separated team slugs to grant maintain access
 #   REPO_PUSH             Optional. Space-separated team slugs to grant push access
@@ -50,6 +52,7 @@ GITHUB_TOKEN=${GITHUB_TOKEN:-''}
 ORG=${ORG:-''}
 API_URL_PREFIX=${API_URL_PREFIX:-'https://api.github.com'}
 REPO_NAME_FILTER=${REPO_NAME_FILTER:-''}
+SKIP_ARCHIVED=${SKIP_ARCHIVED:-'false'}
 
 # Permission-specific team variables (space-separated team slugs)
 REPO_ADMIN=${REPO_ADMIN:-''}
@@ -79,6 +82,9 @@ validate_github_token
 print_status "Organization: ${ORG}"
 if [ -n "${REPO_NAME_FILTER}" ]; then
   print_status "Repository filter: ${REPO_NAME_FILTER}*"
+fi
+if [ "${SKIP_ARCHIVED}" = "true" ]; then
+  print_status "Skipping non-admin permissions on archived repositories"
 fi
 
 is_excluded () {
@@ -146,19 +152,26 @@ process_repos () {
       err "$(echo "${repos_json}" | jq -r '.message // "unknown error"')"
     fi
 
-    while IFS= read -r REPO; do
+    while IFS=$'\t' read -r REPO ARCHIVED; do
       [ -z "${REPO}" ] && continue
       print_status "Processing repo ${REPO}"
 
+      # Admin access is always granted, even on archived repos (e.g. so
+      # platform teams retain settings access after archival).
       apply_level "${REPO}" "admin" "${REPO_ADMIN}" "${REPO_ADMIN_EXCLUDE}"
-      apply_level "${REPO}" "maintain" "${REPO_MAINTAIN}" "${REPO_MAINTAIN_EXCLUDE}"
-      apply_level "${REPO}" "push" "${REPO_PUSH}" "${REPO_PUSH_EXCLUDE}"
-      apply_level "${REPO}" "triage" "${REPO_TRIAGE}" "${REPO_TRIAGE_EXCLUDE}"
-      apply_level "${REPO}" "pull" "${REPO_PULL}" "${REPO_PULL_EXCLUDE}"
+
+      if [ "${SKIP_ARCHIVED}" = "true" ] && [ "${ARCHIVED}" = "true" ]; then
+        print_status "  Skipping non-admin permissions on ${REPO} (archived)"
+      else
+        apply_level "${REPO}" "maintain" "${REPO_MAINTAIN}" "${REPO_MAINTAIN_EXCLUDE}"
+        apply_level "${REPO}" "push" "${REPO_PUSH}" "${REPO_PUSH_EXCLUDE}"
+        apply_level "${REPO}" "triage" "${REPO_TRIAGE}" "${REPO_TRIAGE_EXCLUDE}"
+        apply_level "${REPO}" "pull" "${REPO_PULL}" "${REPO_PULL_EXCLUDE}"
+      fi
 
       # Add delay to prevent hitting GitHub rate limit
       sleep 5
-    done < <(echo "${repos_json}" | jq -r --arg filter "${REPO_NAME_FILTER}" 'sort_by(.name) | .[] | select(.name | startswith($filter)) | .name')
+    done < <(echo "${repos_json}" | jq -r --arg filter "${REPO_NAME_FILTER}" 'sort_by(.name) | .[] | select(.name | startswith($filter)) | [.name, (.archived // false | tostring)] | @tsv')
   done
 }
 
