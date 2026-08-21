@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.5.0](https://github.com/locus313/github-api-scripts/compare/v1.4.3...v1.5.0) (2026-08-21)
+
+
+### Features
+
+* add SKIP_ARCHIVED option to github-add-repo-permissions ([#59](https://github.com/locus313/github-api-scripts/issues/59)) ([4e45402](https://github.com/locus313/github-api-scripts/commit/4e45402eae5f4a0e0ad7625edd6d01f136c6258e))
+
 ## [1.4.3](https://github.com/locus313/github-api-scripts/compare/v1.4.2...v1.4.3) (2026-08-05)
 
 
