@@ -115,6 +115,17 @@ _run_script() {
   [[ "$output" == *"Applied pull to read-team on repo-skip"* ]]
 }
 
+@test "github-add-repo-permissions: skips non-admin permissions but still applies admin on archived repos when SKIP_ARCHIVED is true" {
+  cp "${BATS_TEST_DIRNAME}/mock_curl_permissions.sh" "$MOCK_BIN/curl"
+  chmod +x "$MOCK_BIN/curl"
+  _run_script "${REPO_ROOT}/org-admin/github-add-repo-permissions/github-add-repo-permissions.sh" \
+    "export GITHUB_TOKEN=fake; export ORG=test; export REPO_ADMIN=owner-team; export REPO_PULL=read-team; export SKIP_ARCHIVED=true; export MOCK_REPOS_JSON='[{\"name\":\"repo-keep\",\"archived\":false},{\"name\":\"repo-old\",\"archived\":true}]';"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Applied pull to read-team on repo-keep"* ]]
+  [[ "$output" == *"Applied admin to owner-team on repo-old"* ]]
+  [[ "$output" != *"pull to read-team on repo-old"* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # org-admin/github-archive-old-repos
 # ═══════════════════════════════════════════════════════════════════════════════

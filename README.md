@@ -168,6 +168,9 @@ export REPO_NAME_FILTER="my-service-"
 
 # Optional: skip specific repos for a given permission level (space-separated repo names)
 export REPO_PULL_EXCLUDE="secret-repo internal-tools"   # These repos won't get pull access
+
+# Optional: skip maintain/push/triage/pull on archived repos (admin is still applied)
+export SKIP_ARCHIVED="true"
 ```
 
 **Usage:**
@@ -182,6 +185,7 @@ cd org-admin/github-add-repo-permissions
 - Grants permissions to specified teams based on permission level
 - Supports multiple teams per permission level (space-separated)
 - Skips repos listed in the matching `REPO_<LEVEL>_EXCLUDE` variable for that permission level only
+- Optionally skips maintain/push/triage/pull permissions on archived repos when `SKIP_ARCHIVED=true` (admin permissions are still applied on archived repos)
 - Processes all five GitHub permission levels: admin, maintain, push, triage, pull
 - Includes 5-second delays between repos to avoid rate limits
 
