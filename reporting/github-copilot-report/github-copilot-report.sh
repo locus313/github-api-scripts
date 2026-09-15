@@ -3,16 +3,20 @@
 # github-copilot-report.sh
 #
 # GitHub Copilot Enterprise licence & usage report, optionally enriched with
-# Entra ID department data. Output: CSV file + console summary.
+# Entra ID or JumpCloud department data. Output: CSV file + console summary.
 #
 # Authentication — no secrets required in flags:
-#   GitHub : GITHUB_TOKEN env var  (PAT with read:enterprise and
-#                                   manage_billing:enterprise scopes)
-#            OR provided automatically from an active gh auth session
-#            with the required scopes
-#   Entra  : az CLI  (optional; run 'az login' once; needs User.Read.All)
-#            Skipped automatically if az is not installed or not logged in.
-#            Use --no-entra to suppress Entra lookups explicitly.
+#   GitHub    : GITHUB_TOKEN env var  (PAT with read:enterprise and
+#                                      manage_billing:enterprise scopes)
+#               OR provided automatically from an active gh auth session
+#               with the required scopes
+#   Entra     : az CLI  (optional; run 'az login' once; needs User.Read.All)
+#               Skipped automatically if az is not installed or not logged in.
+#               Use --no-entra to suppress Entra lookups explicitly.
+#   JumpCloud : JUMPCLOUD_API_KEY env var (optional; JumpCloud admin API key).
+#               Used instead of Entra when set — the two are mutually
+#               exclusive; JumpCloud takes priority when both are available.
+#               Use --no-jumpcloud to suppress JumpCloud lookups explicitly.
 #
 # What this reports:
 #   • Every user with a Copilot seat, their plan type, and their pool contribution
@@ -20,8 +24,13 @@
 #   • Actual per-user AI credit consumption this month (from billing API)
 #   • Each user's effective AI credit budget (Individual override, else Universal)
 #     and how much of it has been consumed (from the Budgets API)
-#   • Users grouped by Entra ID department
+#   • Users grouped by department (from Entra ID or JumpCloud)
 #   • Enterprise-level model usage breakdown
+#
+# Directory lookup email resolution (regular Enterprise Cloud accounts are not
+# SCIM-provisioned like Enterprise Managed Users, so the seats endpoint often
+# has no email for them): seat email → consumed-licenses verified email
+# (works for both account types) → UPN derived from login + --upn-domain.
 #
 # AI credit pool — credits per assigned seat (GitHub usage-based billing, 2026):
 #   Copilot Business  : 1,900 standard  |  3,000 promo (Jun 1 – Sep 1, 2026)
@@ -62,13 +71,16 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 API_URL_PREFIX="${API_URL_PREFIX:-https://api.github.com}"
 UPN_DOMAIN="${UPN_DOMAIN:-}"
 ENTRA_TENANT="${ENTRA_TENANT:-}"
+JUMPCLOUD_API_KEY="${JUMPCLOUD_API_KEY:-}"
 CREDITS_PER_SEAT_OVERRIDE="${CREDITS_PER_SEAT_OVERRIDE:-}"
 REPORT_DIR="${REPORT_DIR:-./reports}"
 OUTPUT_CSV=""
 NO_ENTRA=false
+NO_JUMPCLOUD=false
 NO_BUDGETS=false
 GRAPH_TOKEN=""
 ENTRA_ENABLED=false
+JUMPCLOUD_ENABLED=false
 
 # ── Derive UPN from GitHub login when no email is available ─────────────────
 # Pattern: 'john_example' + domain 'example.com'  →  'john@example.com'
@@ -112,17 +124,21 @@ usage() {
 Usage: github-copilot-report.sh [OPTIONS]
 
 GitHub Copilot Enterprise licence + usage report, optionally enriched with
-Entra ID department information.
+department information from Entra ID or JumpCloud.
 
 Authentication (no secrets in flags):
-  GitHub  →  export GITHUB_TOKEN=ghp_yourtoken  (read:enterprise,manage_billing:enterprise)
-             OR resolved automatically from an active gh auth session
-  Entra   →  az login
+  GitHub     →  export GITHUB_TOKEN=ghp_yourtoken  (read:enterprise,manage_billing:enterprise)
+                OR resolved automatically from an active gh auth session
+  Entra      →  az login
+  JumpCloud  →  export JUMPCLOUD_API_KEY=yourkey
+
+Entra and JumpCloud are mutually exclusive; JumpCloud is used when
+$JUMPCLOUD_API_KEY is set, otherwise Entra is attempted via az CLI.
 
 Options:
   -e, --enterprise SLUG  GitHub Enterprise slug  (or $GITHUB_ENTERPRISE)
-  -d, --upn-domain DOM   Email domain for Entra lookup when GitHub carries no
-                         email address  (or $UPN_DOMAIN, e.g. example.com)
+  -d, --upn-domain DOM   Email domain for directory lookup when GitHub carries
+                         no email address  (or $UPN_DOMAIN, e.g. example.com)
                          Login 'john_example' + domain 'example.com' → john@example.com
                          The tenant ID is auto-resolved from this domain via
                          OIDC discovery, so --entra-tenant is rarely needed.
@@ -133,6 +149,7 @@ Options:
                          Use if your portal shows a different pool size than expected
       --output FILE      Output CSV (default: $REPORT_DIR/copilot-report-YYYYMMDD.csv)
       --no-entra         Skip Entra ID department lookup
+      --no-jumpcloud     Skip JumpCloud department lookup
       --no-budgets       Skip per-user AI credit budget lookup (Universal/Individual)
   -h, --help             Show this message
 
@@ -154,6 +171,7 @@ while [[ $# -gt 0 ]]; do
         --credits)        CREDITS_PER_SEAT_OVERRIDE="$2";  shift 2 ;;
         --output)         OUTPUT_CSV="$2";                 shift 2 ;;
         --no-entra)       NO_ENTRA=true;                   shift   ;;
+        --no-jumpcloud)   NO_JUMPCLOUD=true;               shift   ;;
         --no-budgets)     NO_BUDGETS=true;                 shift   ;;
         -h|--help)        usage; exit 0                             ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
@@ -174,8 +192,18 @@ if [[ -z "$OUTPUT_CSV" ]]; then
     OUTPUT_CSV="${REPORT_DIR}/copilot-report-$(date +%Y%m%d).csv"
 fi
 
+# ── JumpCloud takes priority over Entra when its API key is available ────────
+if [[ "$NO_JUMPCLOUD" != "true" && -n "$JUMPCLOUD_API_KEY" ]]; then
+    JUMPCLOUD_ENABLED=true
+    print_status "JumpCloud API key found — using JumpCloud for department enrichment."
+    [[ "$NO_ENTRA" != "true" ]] && \
+        print_status "Entra ID lookup skipped (JumpCloud takes priority when both are configured)."
+fi
+
 # ── Acquire Microsoft Graph token via az CLI ──────────────────────────────────
-if [[ "$NO_ENTRA" == "true" ]]; then
+if [[ "$JUMPCLOUD_ENABLED" == "true" ]]; then
+    :   # JumpCloud already selected above; Entra is skipped entirely.
+elif [[ "$NO_ENTRA" == "true" ]]; then
     print_warning "Entra ID lookup disabled (--no-entra). Department column will be N/A."
 elif ! command -v az &>/dev/null; then
     print_warning "az CLI is not installed — department/division grouping will be skipped."
@@ -243,6 +271,25 @@ fetch_seats() {
     | jq -s '.'
 }
 
+# ── Consumed-licenses email lookup ───────────────────────────────────────────
+# The seats endpoint only reliably returns .assignee.email for GitHub
+# Enterprise Managed Users (EMU) accounts — regular Enterprise Cloud users are
+# not SCIM-provisioned, so their email is usually null there. The
+# consumed-licenses endpoint reports a verified email for every user in both
+# account types, so it is used as a fallback lookup keyed by login.
+declare -A LICENSE_EMAIL_BY_LOGIN=()
+
+# fetch_license_emails SLUG
+# Populates LICENSE_EMAIL_BY_LOGIN from /enterprises/{slug}/consumed-licenses.
+fetch_license_emails() {
+    local slug="$1" login email
+    while IFS=$'\t' read -r login email; do
+        [[ -n "$login" && -n "$email" ]] && LICENSE_EMAIL_BY_LOGIN["$login"]="$email"
+    done < <(gh_api_paginate "/enterprises/${slug}/consumed-licenses" '.users[]' \
+        | jq -r '[.github_com_login, (.github_com_verified_domain_emails[0] // "")] | @tsv')
+    return 0   # the read loop's own exit status is always nonzero at EOF; ignore it
+}
+
 # ── Microsoft Graph helpers ───────────────────────────────────────────────────
 declare -A _GRAPH_CACHE=()
 
@@ -279,10 +326,63 @@ graph_user_info() {
             jobTitle:    (.jobTitle    // ""),
             displayName: (.displayName // ""),
             mail:        (.mail        // "")
-        }')
+        }' 2>/dev/null) || result=""
+    [[ -z "$result" ]] && result='{"department":"Unknown","jobTitle":"","displayName":"","mail":""}'
 
     _GRAPH_CACHE["$query"]="$result"
     echo "$result"
+}
+
+# ── JumpCloud helpers ─────────────────────────────────────────────────────────
+declare -A _JUMPCLOUD_CACHE=()
+
+# jumpcloud_user_info EMAIL_OR_UPN
+# Returns JSON: {department, jobTitle, displayName, mail}
+jumpcloud_user_info() {
+    local query="$1"
+
+    if [[ "$JUMPCLOUD_ENABLED" != "true" || -z "$query" ]]; then
+        echo '{"department":"N/A","jobTitle":"","displayName":"","mail":""}'
+        return
+    fi
+
+    if [[ -n "${_JUMPCLOUD_CACHE[$query]+_}" ]]; then
+        echo "${_JUMPCLOUD_CACHE[$query]}"
+        return
+    fi
+
+    local resp
+    resp=$(curl -sfG \
+        -H "x-api-key: ${JUMPCLOUD_API_KEY}" \
+        -H "Accept: application/json" \
+        --data-urlencode "filter=email:\$eq:${query}" \
+        "https://console.jumpcloud.com/api/systemusers" \
+        2>/dev/null) || resp='{"results":[]}'
+
+    local result
+    result=$(echo "$resp" | jq -c '
+        .results[0] // {} |
+        {
+            department:  (.department // "Unknown"),
+            jobTitle:    (.jobTitle   // ""),
+            displayName: ([.firstname, .lastname] | map(select(. != null and . != "")) | join(" ")),
+            mail:        (.email      // "")
+        }' 2>/dev/null) || result=""
+    [[ -z "$result" ]] && result='{"department":"Unknown","jobTitle":"","displayName":"","mail":""}'
+
+    _JUMPCLOUD_CACHE["$query"]="$result"
+    echo "$result"
+}
+
+# enrich_user_info EMAIL_OR_UPN
+# Dispatches to whichever directory provider is enabled (JumpCloud takes
+# priority; see provider-selection block above). Neither enabled → N/A stub.
+enrich_user_info() {
+    if [[ "$JUMPCLOUD_ENABLED" == "true" ]]; then
+        jumpcloud_user_info "$1"
+    else
+        graph_user_info "$1"
+    fi
 }
 
 # ── Fetch seats ───────────────────────────────────────────────────────────────
@@ -512,7 +612,15 @@ declare -A DEPT_CREDITS=()
 TOTAL_CREDITS=0
 
 # ── Process each seat ────────────────────────────────────────────────────────
-print_status "Enriching ${SEAT_COUNT} users with Entra ID info (this may take a moment)..."
+if [[ "$ENTRA_ENABLED" == "true" || "$JUMPCLOUD_ENABLED" == "true" ]]; then
+    print_status "Fetching verified emails from consumed-licenses (covers non-EMU enterprises)..."
+    fetch_license_emails "$GITHUB_ENTERPRISE"
+    if [[ "${#LICENSE_EMAIL_BY_LOGIN[@]}" -eq 0 ]]; then
+        print_warning "No consumed-licenses emails were returned — check that GITHUB_TOKEN belongs to an enterprise *owner* (billing-manager-only tokens can read seats/budgets but are rejected by this endpoint), or continue relying on seat email / --upn-domain."
+    fi
+fi
+
+print_status "Enriching ${SEAT_COUNT} users with directory info (this may take a moment)..."
 
 while IFS= read -r seat; do
     login=$(       echo "$seat" | jq -r '.assignee.login          // ""')
@@ -533,17 +641,22 @@ while IFS= read -r seat; do
     [[ "$budget_scope" != "None" ]] && \
         budget_remaining=$(awk -v a="${budget_amount:-0}" -v u="${budget_used:-0}" 'BEGIN{printf "%.2f", a-u}')
 
-    # Prefer email; fall back to UPN derived from login + --upn-domain
+    # Prefer seat email; fall back to consumed-licenses verified email (covers
+    # non-EMU enterprises where seat email is null), then UPN derived from
+    # login + --upn-domain.
     if [[ -n "$email" ]]; then
         lookup="$email"
+    elif [[ -n "${LICENSE_EMAIL_BY_LOGIN[$login]:-}" ]]; then
+        lookup="${LICENSE_EMAIL_BY_LOGIN[$login]}"
     elif [[ -n "$UPN_DOMAIN" ]]; then
         lookup=$(derive_upn "$login" "$UPN_DOMAIN")
     else
         lookup="$login"
     fi
 
-    user_info=$(graph_user_info "$lookup")
-    dept=$(  echo "$user_info" | jq -r '.department  // "Unknown"')
+    user_info=$(enrich_user_info "$lookup")
+    dept=$(  echo "$user_info" | jq -r '.department  // "Unknown"' 2>/dev/null)
+    [[ -z "$dept" ]] && dept="Unknown"
     title=$( echo "$user_info" | jq -r '.jobTitle    // ""')
     disp=$(  echo "$user_info" | jq -r '.displayName // ""')
     [[ -z "$disp" ]] && disp="$gh_name"

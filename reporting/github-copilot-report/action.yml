@@ -1,5 +1,5 @@
 name: 'Copilot Report'
-description: 'GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID department data'
+description: 'GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID or JumpCloud department data'
 inputs:
   github-token:
     description: 'PAT with read:enterprise and manage_billing:enterprise scopes. Cannot be the built-in GITHUB_TOKEN.'
@@ -8,11 +8,15 @@ inputs:
     description: 'GitHub Enterprise slug'
     required: true
   upn-domain:
-    description: 'Email domain for Entra ID lookup when GitHub carries no email address (e.g. example.com)'
+    description: 'Email domain for directory lookup when GitHub carries no email address (e.g. example.com)'
     required: false
     default: ''
   entra-tenant:
     description: 'Override the Azure AD tenant ID for the Graph API lookup. Auto-resolved from upn-domain via OIDC discovery; only needed when that result is incorrect.'
+    required: false
+    default: ''
+  jumpcloud-api-key:
+    description: 'JumpCloud admin API key. Enables JumpCloud department enrichment instead of Entra ID.'
     required: false
     default: ''
   credits:
@@ -31,6 +35,10 @@ inputs:
     description: 'Skip Entra ID department lookup'
     required: false
     default: 'false'
+  no-jumpcloud:
+    description: 'Skip JumpCloud department lookup'
+    required: false
+    default: 'false'
   no-budgets:
     description: 'Skip per-user AI credit budget lookup (Universal/Individual)'
     required: false
@@ -45,11 +53,13 @@ runs:
         GITHUB_ENTERPRISE: ${{ inputs.enterprise }}
         UPN_DOMAIN: ${{ inputs.upn-domain }}
         ENTRA_TENANT: ${{ inputs.entra-tenant }}
+        JUMPCLOUD_API_KEY: ${{ inputs.jumpcloud-api-key }}
         CREDITS_PER_SEAT_OVERRIDE: ${{ inputs.credits }}
         REPORT_DIR: ${{ inputs.report-dir }}
       run: |
         ARGS=()
         [[ -n "${{ inputs.output }}" ]]   && ARGS+=(--output "${{ inputs.output }}")
         [[ "${{ inputs.no-entra }}" == "true" ]] && ARGS+=(--no-entra)
+        [[ "${{ inputs.no-jumpcloud }}" == "true" ]] && ARGS+=(--no-jumpcloud)
         [[ "${{ inputs.no-budgets }}" == "true" ]] && ARGS+=(--no-budgets)
         "${{ github.action_path }}/github-copilot-report.sh" "${ARGS[@]}"

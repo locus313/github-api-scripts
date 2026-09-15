@@ -585,7 +585,7 @@ cd reporting/github-repo-permissions-report
 
 **Script:** `reporting/github-copilot-report/github-copilot-report.sh`
 
-Generates a GitHub Copilot Enterprise licence and usage report. Shows every licensed user, their plan type, pool credit contribution, and actual AI credit consumption for the current billing month, plus their effective AI credit budget (Individual override, else Universal) and how much of it has been consumed. Optionally enriches data with Entra ID department information.
+Generates a GitHub Copilot Enterprise licence and usage report. Shows every licensed user, their plan type, pool credit contribution, and actual AI credit consumption for the current billing month, plus their effective AI credit budget (Individual override, else Universal) and how much of it has been consumed. Optionally enriches data with department information from Entra ID or JumpCloud.
 
 **Prerequisites:**
 - **[curl](https://curl.se)** — HTTP client
@@ -600,8 +600,11 @@ export GITHUB_ENTERPRISE="your-enterprise-slug"
 export GITHUB_TOKEN=ghp_yourtoken    # PAT with read:enterprise and manage_billing:enterprise scopes
 # OR: token is resolved automatically from an active gh auth session with the required scopes
 
-# Optional: Entra ID UPN domain for users without a public GitHub email
+# Optional: directory UPN/email domain for users without a public GitHub email
 export UPN_DOMAIN="example.com"        # e.g. 'john_example' → john@example.com
+
+# Optional: JumpCloud admin API key — used instead of Entra ID when set
+export JUMPCLOUD_API_KEY="yourkey"
 
 # Optional: override the credits-per-seat value shown in your billing portal
 export CREDITS_PER_SEAT_OVERRIDE="1900"
@@ -616,6 +619,7 @@ az login   # optional; needed only for Entra ID department enrichment
 ./github-copilot-report.sh -e YOUR-ENTERPRISE
 ./github-copilot-report.sh -e YOUR-ENTERPRISE -d example.com
 ./github-copilot-report.sh -e YOUR-ENTERPRISE --no-entra
+./github-copilot-report.sh -e YOUR-ENTERPRISE --no-jumpcloud
 ./github-copilot-report.sh -e YOUR-ENTERPRISE --no-budgets
 ./github-copilot-report.sh -e YOUR-ENTERPRISE --credits 1900 --output report.csv
 ```
@@ -625,29 +629,31 @@ az login   # optional; needed only for Entra ID department enrichment
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-e, --enterprise SLUG` | GitHub Enterprise slug (or `$GITHUB_ENTERPRISE`) | — |
-| `-d, --upn-domain DOM` | Email domain for Entra lookup when GitHub carries no email (or `$UPN_DOMAIN`) | — |
+| `-d, --upn-domain DOM` | Email domain for directory lookup when GitHub carries no email (or `$UPN_DOMAIN`) | — |
 | `--credits N` | Override credits-per-seat value (or `$CREDITS_PER_SEAT_OVERRIDE`) | Auto-detected |
 | `--output FILE` | Output CSV filename | `$REPORT_DIR/copilot-report-YYYYMMDD.csv` |
 | `--no-entra` | Skip Entra ID department lookup | — |
+| `--no-jumpcloud` | Skip JumpCloud department lookup | — |
 | `--no-budgets` | Skip per-user AI credit budget lookup (Universal/Individual) | — |
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `REPORT_DIR` | Output directory for the CSV report when `--output` is not given | `./reports` |
+| `JUMPCLOUD_API_KEY` | JumpCloud admin API key; enables JumpCloud enrichment instead of Entra ID | — |
 
 **What it does:**
 - Fetches all Copilot seats across the enterprise (deduplicated by user)
 - Fetches per-user AI credit consumption for the current billing month
 - Fetches enterprise-level AI credit budgets (Universal and Individual overrides) and each user's consumed amount against them
 - Fetches enterprise-level model usage metrics (last 28 days)
-- Optionally enriches each user with Entra ID department and job title via `az rest`
+- Optionally enriches each user with department and job title from Entra ID (`az rest`) or JumpCloud (whichever is configured — JumpCloud takes priority when both are available), matching on email. For non-EMU enterprises where seats don't carry an email, the verified email is looked up from `/enterprises/{enterprise}/consumed-licenses` first, falling back to a UPN derived from `--upn-domain`.
 - Outputs a CSV and a formatted console summary with department breakdown and model usage tables
 
 > [!IMPORTANT]
 > Requires a PAT with `read:enterprise` and `manage_billing:enterprise` scopes — the built-in `GITHUB_TOKEN` cannot grant enterprise-level access. Set `GITHUB_TOKEN` before executing (or have an active `gh` auth session with those scopes so the lib can auto-resolve the token).
 
 > [!NOTE]
-> The Entra ID enrichment is skipped automatically if `az` is not logged in, or can be disabled with `--no-entra`. Budget lookups require the token owner to be an enterprise admin or billing manager, and can be disabled with `--no-budgets`.
+> Entra ID and JumpCloud enrichment are mutually exclusive; JumpCloud is used when `$JUMPCLOUD_API_KEY` is set, otherwise Entra ID is attempted via `az`. Entra ID enrichment is skipped automatically if `az` is not logged in, or can be disabled with `--no-entra`; JumpCloud enrichment can be disabled with `--no-jumpcloud`. Budget lookups require the token owner to be an enterprise admin or billing manager, and can be disabled with `--no-budgets`.
 
 ---
 
@@ -1024,7 +1030,7 @@ Each script is published as a **composite action**, so you can reference it dire
 | `org-admin/github-repo-from-template` | Create a repository from a template with team permissions and a CI/CD collaborator |
 | `reporting/github-monthly-issues-report` | Generate an HTML report of issues created within a date range |
 | `reporting/github-repo-permissions-report` | Export repository collaborator/team permissions and branch-approval bypass actors to CSV |
-| `reporting/github-copilot-report` | GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID department data |
+| `reporting/github-copilot-report` | GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID or JumpCloud department data |
 | `reporting/github-copilot-budget-advisor` | Analyse per-user Copilot AI credit consumption and recommend a Universal per-user budget limit |
 
 ---
