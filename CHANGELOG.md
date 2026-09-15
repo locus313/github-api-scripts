@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.6.0](https://github.com/locus313/github-api-scripts/compare/v1.5.0...v1.6.0) (2026-09-15)
+
+
+### Features
+
+* add JumpCloud department enrichment to github-copilot-report ([#61](https://github.com/locus313/github-api-scripts/issues/61)) ([03fa55d](https://github.com/locus313/github-api-scripts/commit/03fa55dbceef8b12507a6dd6caeaf629fd936c6f))
+
 ## [1.5.0](https://github.com/locus313/github-api-scripts/compare/v1.4.3...v1.5.0) (2026-08-21)
 
 
