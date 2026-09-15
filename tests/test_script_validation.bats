@@ -503,6 +503,12 @@ _run_script() {
   [[ "$output" != *"Unknown option"* ]]
 }
 
+@test "github-copilot-report: --no-jumpcloud is recognised (fails at token check)" {
+  _run_script "${REPO_ROOT}/reporting/github-copilot-report/github-copilot-report.sh" "unset GITHUB_TOKEN;" "--no-jumpcloud"
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"Unknown option"* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # personal/github-organize-stars
 # ═══════════════════════════════════════════════════════════════════════════════
