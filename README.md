@@ -141,7 +141,7 @@ Each script is a self-contained utility designed for a specific task. Navigate t
 ### Folder Layout (Domain-Based)
 
 - `org-admin/`: `github-add-repo-collaborators-by-pattern`, `github-add-repo-permissions`, `github-archive-old-repos`, `github-auto-repo-creation`, `github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-get-repo-list`, `github-import-repo`, `github-migrate-internal-repos-to-private`, `github-repo-from-template`
-- `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`, `github-install-enterprise-app`
+- `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`, `github-increase-copilot-user-budget`, `github-install-enterprise-app`
 - `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`, `github-copilot-budget-advisor`
 - `personal/`: `github-organize-stars`
 
@@ -742,6 +742,48 @@ Total seats purchased: 200
 
 ---
 
+### Increase Copilot User Budget
+
+**Script:** `enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh`
+
+Raises the Copilot AI credit budget for one enterprise user. The script shows the user's effective budget and consumption, then offers +$50, +$100, +$150, +$200 and +$250 presets, a custom increase, or an absolute amount. After confirmation it updates the user's own AI credit budget, or creates one when the user is only covered by the Universal budget.
+
+**Required variables:**
+```bash
+export GITHUB_ENTERPRISE="your-enterprise-slug"
+
+# GitHub auth — use one of:
+export GITHUB_TOKEN=ghp_yourtoken    # PAT with manage_billing:enterprise scope
+# OR: token is resolved automatically from an active gh auth session with the required scope
+```
+
+**Usage:**
+```bash
+cd enterprise/github-increase-copilot-user-budget
+
+./github-increase-copilot-user-budget.sh -u octocat
+./github-increase-copilot-user-budget.sh -u octocat --increase 100 --expires 2026-12-31 -y
+./github-increase-copilot-user-budget.sh -u octocat --amount 400 --dry-run
+```
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-e, --enterprise SLUG` | GitHub Enterprise slug (or `$GITHUB_ENTERPRISE`) | — |
+| `-u, --user LOGIN` | GitHub username to update (or `$TARGET_USER`); prompted if omitted | — |
+| `--increase N` | Raise the limit by N whole dollars, skipping the menu | — |
+| `--amount N` | Set the limit to N whole dollars, skipping the menu | — |
+| `--expires DATE` | Expire the user budget on `YYYY-MM-DD` | none |
+| `--allow-decrease` | Permit a new limit at or below the current limit | off |
+| `--dry-run` | Show the planned change without applying it | off |
+| `-y, --yes` | Skip the confirmation prompt | off |
+
+> [!NOTE]
+> Limits are whole dollars. Without `--increase` or `--amount`, prompts require a terminal. An ambiguous match (more than one AI credit budget for the user) aborts without changes.
+
+---
+
 ### Install Enterprise App
 
 **Script:** `enterprise/github-install-enterprise-app/github-install-enterprise-app.sh`
@@ -1016,6 +1058,7 @@ Each script is published as a **composite action**, so you can reference it dire
 | `enterprise/github-add-enterprise-team-read-permissions` | Grant read permissions to an enterprise team across all orgs |
 | `enterprise/github-dockerfile-discovery` | Discover Dockerfiles and extract `FROM` instructions across all enterprise orgs |
 | `enterprise/github-get-consumed-licenses` | Report Enterprise consumed licence seat counts |
+| `enterprise/github-increase-copilot-user-budget` | Raise the Copilot AI credit budget for a single enterprise user |
 | `enterprise/github-get-public-repos` | List all public repositories across all Enterprise orgs |
 | `enterprise/github-install-enterprise-app` | Install an enterprise-owned GitHub App into an org (JWT flow) |
 | `org-admin/github-add-repo-collaborators-by-pattern` | Add collaborators to repositories matching a name pattern |
