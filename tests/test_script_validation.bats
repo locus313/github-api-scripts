@@ -573,3 +573,64 @@ _run_script() {
   [[ "$output" != *"Unknown option"* ]]
   [[ "$output" != *"--days must be"* ]]
 }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# enterprise/github-increase-copilot-user-budget
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@test "github-increase-copilot-user-budget: exits 1 when GITHUB_ENTERPRISE is not set" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_TOKEN=fake; unset GITHUB_ENTERPRISE;" "-u octocat"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-increase-copilot-user-budget: exits 1 when GITHUB_TOKEN is not set" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "unset GITHUB_TOKEN; export GITHUB_ENTERPRISE=my-ent;" "-u octocat"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-increase-copilot-user-budget: --help exits 0" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "" "--help"
+  [ "$status" -eq 0 ]
+}
+
+@test "github-increase-copilot-user-budget: unknown option exits 1" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent;" "--unknown-flag"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Unknown option"* ]]
+}
+
+@test "github-increase-copilot-user-budget: invalid user slug exits 1" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_ENTERPRISE=my-ent;" "-u 'bad/user'"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Invalid user"* ]]
+}
+
+@test "github-increase-copilot-user-budget: --increase non-numeric exits 1" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_ENTERPRISE=my-ent;" "--increase abc"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"--increase must be"* ]]
+}
+
+@test "github-increase-copilot-user-budget: --increase and --amount together exit 1" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_ENTERPRISE=my-ent;" "--increase 50 --amount 100"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"mutually exclusive"* ]]
+}
+
+@test "github-increase-copilot-user-budget: --expires bad format exits 1" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_ENTERPRISE=my-ent;" "--expires 01/02/2099"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"YYYY-MM-DD"* ]]
+}
+
+@test "github-increase-copilot-user-budget: --expires past date exits 1" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_ENTERPRISE=my-ent;" "--expires 2000-01-01"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"future date"* ]]
+}
+
+@test "github-increase-copilot-user-budget: --dry-run, --yes and --allow-decrease are recognised" {
+  _run_script "${REPO_ROOT}/enterprise/github-increase-copilot-user-budget/github-increase-copilot-user-budget.sh" "export GITHUB_ENTERPRISE=my-ent; unset GITHUB_TOKEN;" "-u octocat --dry-run -y --allow-decrease"
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"Unknown option"* ]]
+}

@@ -1,0 +1,59 @@
+name: 'Increase Copilot User Budget'
+description: 'Raise the GitHub Copilot AI credit budget for a single enterprise user'
+inputs:
+  github-token:
+    description: 'PAT with manage_billing:enterprise scope. Cannot be the built-in GITHUB_TOKEN.'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  user:
+    description: 'GitHub username whose budget is raised'
+    required: true
+  increase:
+    description: 'Whole dollars to add to the current limit (use this or amount)'
+    required: false
+    default: ''
+  amount:
+    description: 'Absolute new limit in whole dollars (use this or increase)'
+    required: false
+    default: ''
+  expires:
+    description: 'Optional expiry date for the user budget (YYYY-MM-DD)'
+    required: false
+    default: ''
+  allow-decrease:
+    description: 'Permit a new limit at or below the current limit'
+    required: false
+    default: 'false'
+  dry-run:
+    description: 'Show the planned change without applying it'
+    required: false
+    default: 'false'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+runs:
+  using: composite
+  steps:
+    - name: Increase Copilot user budget
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_ENTERPRISE: ${{ inputs.enterprise }}
+        TARGET_USER: ${{ inputs.user }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+        INPUT_INCREASE: ${{ inputs.increase }}
+        INPUT_AMOUNT: ${{ inputs.amount }}
+        INPUT_EXPIRES: ${{ inputs.expires }}
+        INPUT_ALLOW_DECREASE: ${{ inputs.allow-decrease }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        ARGS=(--yes)
+        [[ -n "${INPUT_INCREASE}" ]] && ARGS+=(--increase "${INPUT_INCREASE}")
+        [[ -n "${INPUT_AMOUNT}" ]] && ARGS+=(--amount "${INPUT_AMOUNT}")
+        [[ -n "${INPUT_EXPIRES}" ]] && ARGS+=(--expires "${INPUT_EXPIRES}")
+        [[ "${INPUT_ALLOW_DECREASE}" == "true" ]] && ARGS+=(--allow-decrease)
+        [[ "${INPUT_DRY_RUN}" == "true" ]] && ARGS+=(--dry-run)
+        "${{ github.action_path }}/github-increase-copilot-user-budget.sh" "${ARGS[@]}"
