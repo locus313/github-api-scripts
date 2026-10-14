@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.7.0](https://github.com/locus313/github-api-scripts/compare/v1.6.0...v1.7.0) (2026-10-14)
+
+
+### Features
+
+* add github-increase-copilot-user-budget script ([#63](https://github.com/locus313/github-api-scripts/issues/63)) ([5c07c2e](https://github.com/locus313/github-api-scripts/commit/5c07c2e5cbfd7ea6fe537fcaad6d2f037f105970))
+
 ## [1.6.0](https://github.com/locus313/github-api-scripts/compare/v1.5.0...v1.6.0) (2026-09-15)
 
 
