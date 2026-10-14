@@ -96,6 +96,8 @@ bats tests/test_common.bats
 | `tests/test_common.bats` | `lib/github-common.sh` — pure-logic functions (`validate_slug`, `require_env_var`, `require_command`, `err`, `configure_gh_auth`, `validate_token`, `get_repo_page_count`, `is_bsd_date`, `csv_escape`) and API helpers (`gh_api` sentinels, `gh_api_paginate`) |
 | `tests/test_script_validation.bats` | Every script — missing required env vars exit 1, invalid CLI args exit 1, `--help` exits 0, script-specific enum/allowlist validation |
 | `tests/mock_curl.sh` | Universal drop-in curl mock (used by both test files); response data via env vars `MOCK_CURL_CODE`, `MOCK_CURL_BODY`, `MOCK_CURL_LINK` |
+| `tests/test_repo_structure.bats` | Every domain script ships an executable file, `action.yml`, validation tests, and README entries |
+| `tests/test_hooks.bats` | `.github/hooks/scripts/block-file-writes-via-bash.sh` denies heredoc file writes |
 
 ### What to test for every new script
 
@@ -151,33 +153,10 @@ Use `_mock_curl_200` (defined in `test_script_validation.bats`) when a test must
 - **CI:** shellcheck + bats unit tests run together on every PR (`.github/workflows/ci.yml`)
 - **Releases:** automated by Release Please (`.github/workflows/release.yml`) — pushes to `main` trigger a release PR; merging it publishes the GitHub Release and tag
 
-## Commit Messages — Conventional Commits (required)
+## Commit Messages
 
-All commits **must** follow [Conventional Commits](https://www.conventionalcommits.org/). `CHANGELOG.md` is fully managed by Release Please and **must never be edited manually**.
-
-| Prefix | Version bump | Visible in changelog |
-|--------|-------------|----------------------|
-| `feat:` | minor | ✅ Features |
-| `fix:` | patch | ✅ Bug Fixes |
-| `docs:` | patch | ✅ Documentation |
-| `perf:` | patch | ✅ Performance Improvements |
-| `revert:` | patch | ✅ Reverts |
-| `feat!:` / `BREAKING CHANGE:` | major | ✅ |
-| `chore:` | none | hidden |
-| `ci:` | none | hidden |
-| `refactor:` | patch | Code Refactoring |
-| `test:` | none | hidden |
-
----
+Use [Conventional Commits](https://www.conventionalcommits.org/); Release Please generates `CHANGELOG.md`, so leave that file untouched. Prefix-to-bump table: "Commit Messages" in [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
 ## Common Pitfalls
 
-- **Team slugs vs names:** API uses slugs (lowercase, hyphenated). "Platform Team" → `platform-team`
-- **Bearer vs token auth:** Enterprise endpoints need `Bearer`; standard org/repo endpoints use `token`
-- **Space-separated lists:** `REPO_ADMIN` and similar accept multiple space-separated values — loop with `for item in ${VAR}`
-- **Comma-separated lists:** `COLLABORATORS`, `REPO_NAMES`, `ORGS` use commas — split with `IFS=','`
-- **URL encoding:** Labels in API calls must be URL-encoded (e.g., `Linked [AC]` → `Linked%20[AC]`)
-- **Public repo filtering:** Do not rely on `?type=public` for enterprise-managed orgs — fetch all and filter in `jq`
-- **macOS vs Linux date:** `github-archive-old-repos.sh` handles both BSD `date -v` and GNU `date -d`
-- **`set -euo pipefail`:** Must be the first executable line after the header — never omit it
-- **Never edit `CHANGELOG.md` manually** — it is fully managed by Release Please via Conventional Commits
+Slug, auth-header, list-separator, URL-encoding, and date pitfalls: "Common Pitfalls" in [`.github/copilot-instructions.md`](.github/copilot-instructions.md). Per-script quirks: [`docs/script-behaviors.md`](docs/script-behaviors.md).

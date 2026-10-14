@@ -18,7 +18,11 @@ LIB_PATH="${BATS_TEST_DIRNAME}/../lib/github-common.sh"
 MOCK_BIN=""
 
 setup() {
+  export GH_API_RATE_LIMIT_SLEEP=0 GH_API_ERROR_SLEEP=0
   MOCK_BIN="$(mktemp -d)"
+  # sleep mock: retry delays in gh_api must not slow the suite
+  printf '#!/bin/sh\nexit 0\n' > "$MOCK_BIN/sleep"
+  chmod +x "$MOCK_BIN/sleep"
   # Default gh mock: fails all calls so GITHUB_TOKEN is not auto-resolved
   printf '#!/bin/sh\nexit 1\n' > "$MOCK_BIN/gh"
   chmod +x "$MOCK_BIN/gh"
