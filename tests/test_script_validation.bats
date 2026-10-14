@@ -25,6 +25,9 @@ MOCK_BIN=""
 
 setup() {
   MOCK_BIN="$(mktemp -d)"
+  # sleep mock: rate-limit delays in scripts and lib must not slow the suite
+  printf '#!/bin/sh\nexit 0\n' > "$MOCK_BIN/sleep"
+  chmod +x "$MOCK_BIN/sleep"
   # gh mock: fail all calls so GITHUB_TOKEN is never auto-resolved from a session
   printf '#!/bin/sh\nexit 1\n' > "$MOCK_BIN/gh"
   chmod +x "$MOCK_BIN/gh"
