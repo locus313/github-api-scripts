@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.8.0](https://github.com/locus313/github-api-scripts/compare/v1.7.0...v1.8.0) (2026-11-12)
+
+
+### Features
+
+* add github-enterprise-billing-report with configurable branding ([#66](https://github.com/locus313/github-api-scripts/issues/66)) ([88ca1e8](https://github.com/locus313/github-api-scripts/commit/88ca1e877758e6aa84aabec2a920817de6926e17))
+
 ## [1.7.0](https://github.com/locus313/github-api-scripts/compare/v1.6.0...v1.7.0) (2026-10-14)
 
 
