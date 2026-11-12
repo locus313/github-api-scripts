@@ -34,6 +34,8 @@ github-api-scripts/
 │   ├── skills/                   # Custom skills
 │   └── instructions/             # Path-scoped instruction files
 ├── install-hooks.sh              # Installs .githooks/pre-commit via git config
+├── tools/
+│   └── screenshot-html.sh        # Renders an HTML report to PNG (screen + print width)
 ├── LICENSE                       # MIT
 └── README.md                     # Full script documentation with usage examples
 ```
@@ -97,7 +99,7 @@ bats tests/test_common.bats
 | `tests/test_script_validation.bats` | Every script — missing required env vars exit 1, invalid CLI args exit 1, `--help` exits 0, script-specific enum/allowlist validation |
 | `tests/mock_curl.sh` | Universal drop-in curl mock (used by both test files); response data via env vars `MOCK_CURL_CODE`, `MOCK_CURL_BODY`, `MOCK_CURL_LINK` |
 | `tests/test_repo_structure.bats` | Every domain script ships an executable file, `action.yml`, validation tests, and README entries |
-| `tests/test_hooks.bats` | `.github/hooks/scripts/block-file-writes-via-bash.sh` denies heredoc file writes |
+| `tests/test_hooks.bats` | `.github/hooks/scripts/block-file-writes-via-bash.sh` denies heredoc and interpreter file writes and fails open on bad input |
 
 ### What to test for every new script
 
