@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.9.0](https://github.com/locus313/github-api-scripts/compare/v1.8.0...v1.9.0) (2026-11-12)
+
+
+### Features
+
+* explain billing products and show seats in billing report ([#69](https://github.com/locus313/github-api-scripts/issues/69)) ([37d99da](https://github.com/locus313/github-api-scripts/commit/37d99da5304470d2ae0a178f449e894d8f8a1323))
+
 ## [1.8.0](https://github.com/locus313/github-api-scripts/compare/v1.7.0...v1.8.0) (2026-11-12)
 
 
