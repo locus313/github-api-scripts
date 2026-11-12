@@ -2,8 +2,9 @@
 # =============================================================================
 # tests/test_hooks.bats
 #
-# Verifies .github/hooks/scripts/block-file-writes-via-bash.sh denies heredoc
-# and tee file writes and allows ordinary commands.
+# Verifies .github/hooks/scripts/block-file-writes-via-bash.sh denies heredoc,
+# tee and interpreter-heredoc file writes, allows ordinary commands, and fails
+# open on an unparseable payload.
 #
 # Usage:
 #   bats tests/test_hooks.bats
@@ -50,6 +51,19 @@ EOF"
   _run_hook bash "python3 - <<'EOF'
 print(1)
 EOF"
+  [ -z "$output" ]
+}
+
+@test "hook: denies an interpreter heredoc that writes a file" {
+  _run_hook bash "python3 - f <<'PY'
+open('f','w').write('x')
+PY"
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]
+}
+
+@test "hook: allows commands when the payload is not valid JSON" {
+  run bash "${HOOK}" <<<'not json'
+  [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
