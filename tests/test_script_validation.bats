@@ -632,9 +632,10 @@ _run_script() {
   grep -q "not available from the billing API" "${html}"
   grep -q "Top organizations" "${html}"
   grep -q 'acme/api</th><td>$10.00</td><td>$10.00</td><td>$20.00</td>' "${html}"
-  grep -q 'copilot: copilot_business</th><td>$5.00</td><td>$5.00</td><td>$10.00</td>' "${html}"
-  grep -q 'actions_linux</th><td>$10.00</td><td>$10.00</td><td>$25.00</td><td>$5.00</td><td>$20.00</td>' "${html}"
-  grep -q '"actions"' "${dir}"/billing-report-my-ent-*.csv
+  grep -q '>copilot_business</th><td>$5.00</td><td>$5.00</td><td>$10.00</td>' "${html}"
+  grep -q 'Linux runner minutes <small>actions_linux</small></th><td>$10.00</td><td>$10.00</td><td>$25.00</td><td>$5.00</td><td>$20.00</td>' "${html}"
+  grep -q '<dt>Actions</dt><dd>Minutes on GitHub-hosted runners' "${html}"
+  grep -q '"Actions"' "${dir}"/billing-report-my-ent-*.csv
 }
 
 @test "github-enterprise-billing-report: ORGS limits the top organizations" {
@@ -679,13 +680,17 @@ _run_script() {
   [[ "$output" == *"BRAND_CSS must not contain markup"* ]]
 }
 
-@test "github-enterprise-billing-report: GHEC product suppresses the missing-licence note" {
+@test "github-enterprise-billing-report: GHEC product is named, shows seats, and suppresses the missing-licence note" {
   _mock_curl_200
-  export MOCK_CURL_BODY='{"usageItems":[{"product":"GHEC","sku":"ghec_seat","grossAmount":21,"discountAmount":0,"netAmount":21}]}'
+  export MOCK_CURL_BODY='{"usageItems":[{"product":"GHEC","sku":"ghec_licenses","grossAmount":31.5,"discountAmount":0,"netAmount":31.5,"netQuantity":1.5,"unitType":"user-months","pricePerUnit":21,"organizationName":""}]}'
   local dir="${BATS_TEST_TMPDIR}/reports"
   _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=1; export REPORT_DIR='${dir}';" "--no-pdf"
   [ "$status" -eq 0 ]
   ! grep -q "licence seats" "${dir}"/billing-report-my-ent-*.html
+  grep -q '<dt>GitHub Enterprise Cloud</dt>' "${dir}"/billing-report-my-ent-*.html
+  grep -q '>Enterprise Cloud user licences</th>' "${dir}"/billing-report-my-ent-*.html
+  grep -q '<td>$31.50<small>1.5 seats × $21.00</small></td>' "${dir}"/billing-report-my-ent-*.html
+  grep -q '"GitHub Enterprise Cloud"' "${dir}"/billing-report-my-ent-*.csv
 }
 
 @test "github-enterprise-billing-report: applies branding to the HTML" {

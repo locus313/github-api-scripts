@@ -8,6 +8,14 @@ Standalone automation scripts for administering GitHub organizations and enterpr
 A top-level GitHub billable offering in an enterprise's bill, such as Enterprise Cloud licenses, Advanced Security, Actions, or Copilot.
 _Avoid_: Area, category, service
 
+**SKU**:
+One priced line item within a billing product, such as Linux runner minutes within Actions or Copilot Business seats within Copilot.
+_Avoid_: Line, meter
+
+**Active committer**:
+A person who pushed a commit in the last 90 days to a repository with Advanced Security or Code Quality enabled; each one is billed one seat, counted once across the enterprise.
+_Avoid_: Active user, contributor
+
 **Reporting window**:
 The span of calendar months a billing report covers: the most recent complete months. The current month is never included.
 _Avoid_: Period, range
