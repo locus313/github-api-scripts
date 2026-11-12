@@ -165,23 +165,8 @@ Per-script quirks (auth style, pagination, sentinels, reports) live in [`docs/sc
 
 ### Testing Approach
 
-The project has a bats unit-test suite in `tests/`. Run the full suite with:
-
-```bash
-bats tests/
-```
-
-| File | What it covers |
-|------|----------------|
-| `tests/test_common.bats` | `lib/github-common.sh` pure-logic functions and API helpers |
-| `tests/test_script_validation.bats` | Every script — missing env vars, invalid args, `--help`, script-specific guards |
-| `tests/mock_curl.sh` | Universal curl mock used by both test files |
-
-Every new script **must** include a test section in `tests/test_script_validation.bats` before it is merged. At minimum test: each required env var missing exits 1, unknown CLI args exit 1, and any enum or allowlist validation specific to the script.
-
-Additional testing approaches:
-- **Always test on a test organization first** before running against production
-- **Dry-run flags** — several scripts support `--dry-run` to preview changes without applying them
+Run `bats tests/`. Test files, the mocking pattern and the required cases for
+every new script are in the "Testing" section of [`AGENTS.md`](../AGENTS.md).
 
 ### Commit Messages — Conventional Commits (required)
 
@@ -222,7 +207,7 @@ When you change one of these files, you must also update the files in the "Also 
 
 | When you change… | Also update |
 |------------------|-------------|
-| `lib/github-common.sh` — any public function signature or behaviour | All 18 scripts that source it; verify each caller still passes the right arguments. Check with: `grep -r "github-common" . --include="*.sh"` |
+| `lib/github-common.sh` — any public function signature or behaviour | Every script that sources it; verify each caller still passes the right arguments. List them with: `grep -rl "github-common" . --include="*.sh"` |
 | `lib/github-common.sh` — add a new helper function | `AGENTS.md` shared library table; `README.md` if the function affects usage |
 | `gh_api_paginate` signature or pagination behaviour | `github-repo-permissions-report.sh` (3 call sites), `github-copilot-report.sh` (`fetch_seats`) — both pipe output through `jq -s '.'` and depend on the `jq_filter`/`api_version` parameter order |
 | Any script's required env vars | That script's `# ===` header comment; the corresponding README.md section's env var table; that script's `action.yml` inputs (add/remove required inputs to match) |
