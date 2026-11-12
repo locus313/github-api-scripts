@@ -2,6 +2,20 @@
 
 Standalone automation scripts for administering GitHub organizations and enterprises, including Copilot billing.
 
+## Billing reports
+
+**Billing product**:
+A top-level GitHub billable offering in an enterprise's bill, such as Enterprise Cloud licenses, Advanced Security, Actions, or Copilot.
+_Avoid_: Area, category, service
+
+**Reporting window**:
+The span of calendar months a billing report covers: the most recent complete months. The current month is never included.
+_Avoid_: Period, range
+
+**Billing report**:
+An HTML and PDF document showing enterprise cost per billing product across a reporting window, with charts of how each cost changed over time.
+_Avoid_: Cost report, invoice
+
 ## Copilot budgets
 
 **AI credit budget**:

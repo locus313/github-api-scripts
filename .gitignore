@@ -4,6 +4,8 @@
 # Generated report artifacts
 **/reports/*.csv
 **/reports/*.txt
+**/reports/*.html
+**/reports/*.pdf
 
 # Monthly issues report output
 output.txt

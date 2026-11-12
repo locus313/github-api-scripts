@@ -142,7 +142,7 @@ Each script is a self-contained utility designed for a specific task. Navigate t
 
 - `org-admin/`: `github-add-repo-collaborators-by-pattern`, `github-add-repo-permissions`, `github-archive-old-repos`, `github-auto-repo-creation`, `github-close-archived-repo-security-alerts`, `github-enable-issues`, `github-get-repo-list`, `github-import-repo`, `github-migrate-internal-repos-to-private`, `github-repo-from-template`
 - `enterprise/`: `github-add-enterprise-team-read-permissions`, `github-dockerfile-discovery`, `github-get-consumed-licenses`, `github-get-public-repos`, `github-increase-copilot-user-budget`, `github-install-enterprise-app`
-- `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`, `github-copilot-budget-advisor`
+- `reporting/`: `github-monthly-issues-report`, `github-repo-permissions-report`, `github-copilot-report`, `github-copilot-budget-advisor`, `github-enterprise-billing-report`
 - `personal/`: `github-organize-stars`
 
 ### Add Repository Permissions
@@ -708,6 +708,77 @@ cd reporting/github-copilot-budget-advisor
 
 ---
 
+### Enterprise Billing Report
+
+**Script:** `reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh`
+
+Generates HTML, PDF, and CSV billing reports for a GitHub Enterprise. Net cost is broken down by billing product (Actions, Advanced Security, Copilot, Packages, and so on) for the last N complete months, with charts that show which products grew.
+
+**Prerequisites:**
+- **[curl](https://curl.se)** — HTTP client
+- **[jq](https://stedolan.github.io/jq)** — JSON processor
+- **Chrome, Chromium, or [wkhtmltopdf](https://wkhtmltopdf.org)** — optional, renders the PDF. Without one of them the script writes the HTML and CSV and warns that the PDF was skipped.
+
+**Required variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | PAT with `manage_billing:enterprise` scope (enterprise admin or billing manager), or an active `gh` auth session |
+| `GITHUB_ENTERPRISE` | GitHub Enterprise slug |
+
+**Optional variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MONTHS` | Complete months to report (1–24). GitHub serves only the past 24 months | `3` |
+| `ORGS` | Comma-separated organizations to limit the report to | whole enterprise |
+| `REPORT_DIR` | Output directory | `./reports` |
+| `API_URL_PREFIX` | GitHub API base URL | `https://api.github.com` |
+| `BRAND_LOGO` | Path to a `.png`, `.jpg`, `.gif`, or `.svg` logo, embedded in the HTML above the title | none |
+| `BRAND_NAME` | Wordmark text shown above the title, next to the logo | none |
+| `BRAND_TITLE` | Report title | `GitHub Enterprise billing report: <enterprise>` |
+| `BRAND_COLOR` | Hex accent color such as `#0969da`, used for headings and as the first chart color | none |
+| `BRAND_FOOTER` | Extra line of text in the report footer | none |
+| `BRAND_PALETTE` | Comma-separated hex colors replacing the chart palette | built-in palette |
+| `BRAND_CSS` | Path to a CSS file applied after the default styles; `BRAND_COLOR` is available to it as `var(--brand)` | none |
+
+**Usage:**
+```bash
+export GITHUB_TOKEN=ghp_yourtoken
+export GITHUB_ENTERPRISE=my-enterprise
+
+cd reporting/github-enterprise-billing-report
+
+./github-enterprise-billing-report.sh
+MONTHS=12 ./github-enterprise-billing-report.sh
+./github-enterprise-billing-report.sh --no-pdf
+BRAND_LOGO=./logo.png BRAND_TITLE="Acme Corp cloud spend" BRAND_COLOR="#0969da" \
+  BRAND_FOOTER="Prepared by Platform Engineering" ./github-enterprise-billing-report.sh
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--no-pdf` | Skip PDF generation |
+
+**Output:**
+- `billing-report-<enterprise>-<YYYY-MM>.html`: self-contained report (`YYYY-MM` is the last complete month) with a stacked monthly cost chart, a growth ranking, the top 10 organizations and repositories by net cost per month, a table of costs billed to the enterprise account rather than an organization, one trend chart per billing product, a summary table, and a per-month SKU table per product
+- `billing-report-<enterprise>-<YYYY-MM>.pdf`: the same report rendered to PDF
+- `billing-report-<enterprise>-<YYYY-MM>.csv`: `month,product,gross,discount,net` rows
+
+**What it does:**
+- Calls `GET /enterprises/{enterprise}/settings/billing/usage/summary` once per month in the window
+- Calls `GET /enterprises/{enterprise}/settings/billing/usage` once per month for the organization and repository breakdown
+- Skips months GitHub returns no data for, with a warning
+- Excludes the current month, since its costs are still accruing
+- Computes growth as the change in net cost between the first and last month, per billing product
+
+> [!NOTE]
+> Amounts are net USD as returned by GitHub and may differ from your invoice. If the enterprise's Enterprise Cloud licence seats are not returned by the billing API, the report says so rather than estimating them.
+
+---
+
 ### Get Consumed Licenses
 
 **Script:** `enterprise/github-get-consumed-licenses/github-get-consumed-licenses.sh`
@@ -1075,6 +1146,7 @@ Each script is published as a **composite action**, so you can reference it dire
 | `reporting/github-repo-permissions-report` | Export repository collaborator/team permissions and branch-approval bypass actors to CSV |
 | `reporting/github-copilot-report` | GitHub Copilot Enterprise licence and AI credit usage report, optionally enriched with Entra ID or JumpCloud department data |
 | `reporting/github-copilot-budget-advisor` | Analyse per-user Copilot AI credit consumption and recommend a Universal per-user budget limit |
+| `reporting/github-enterprise-billing-report` | Generate HTML, PDF, and CSV enterprise billing reports per billing product with growth charts |
 
 ---
 
