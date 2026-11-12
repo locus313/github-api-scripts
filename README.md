@@ -763,7 +763,7 @@ BRAND_LOGO=./logo.png BRAND_TITLE="Acme Corp cloud spend" BRAND_COLOR="#0969da" 
 | `--no-pdf` | Skip PDF generation |
 
 **Output:**
-- `billing-report-<enterprise>-<YYYY-MM>.html`: self-contained report (`YYYY-MM` is the last complete month) with a stacked monthly cost chart, a growth ranking, the top 10 organizations and repositories by net cost per month, a table of costs billed to the enterprise account rather than an organization, one trend chart per billing product, a summary table, and a per-month SKU table per product
+- `billing-report-<enterprise>-<YYYY-MM>.html`: self-contained report (`YYYY-MM` is the last complete month) with a stacked monthly cost chart, a short explanation of each billing product, a growth ranking, the top 10 organizations and repositories by net cost per month, a table of costs billed to the enterprise account rather than an organization, one trend chart per billing product, a summary table, and a per-month SKU table per product (readable SKU names with the GitHub SKU code beneath each, and the billed quantity and unit price under each monthly amount, such as `64.8 seats × $49.00`)
 - `billing-report-<enterprise>-<YYYY-MM>.pdf`: the same report rendered to PDF
 - `billing-report-<enterprise>-<YYYY-MM>.csv`: `month,product,gross,discount,net` rows
 

@@ -156,6 +156,47 @@ SPEND_FILE="${WORK_DIR}/spend.ndjson"
 : > "${ROWS_FILE}"
 : > "${SPEND_FILE}"
 
+# Readable names for billing products and SKUs. The summary endpoint returns
+# SKU codes (ghec_licenses) and the itemised endpoint returns lowercase product
+# codes with SKU display names (ghec, Enterprise Cloud), so both forms are
+# listed. pname falls back to its input; sname and pdesc return null.
+JQ_NAMES='
+def pname: {"ghec": "GitHub Enterprise Cloud", "ghas": "Advanced Security", "actions": "Actions", "copilot": "Copilot",
+  "code_quality": "Code Quality", "git_lfs": "Git LFS", "packages": "Packages", "codespaces": "Codespaces"}[ascii_downcase] // .;
+def pdesc: {
+  "github enterprise cloud": "User licences: one per person with access to the enterprise, counted once however many organizations they belong to.",
+  "advanced security": "One seat per active committer: anyone who pushed a commit in the last 90 days to a repository with code scanning or secret protection enabled, counted once across the enterprise. Also covers AI-assisted security features such as Copilot Autofix.",
+  "code quality": "One seat per active committer: anyone who pushed a commit in the last 90 days to a repository with Code Quality enabled, counted once across the enterprise. Also covers its AI-assisted fixes.",
+  "copilot": "Copilot seats and AI usage billed on top of them, including the Copilot coding agent.",
+  "actions": "Minutes on GitHub-hosted runners, priced by operating system, plus storage for artifacts and caches.",
+  "git lfs": "Storage and download bandwidth for files tracked with Git Large File Storage.",
+  "packages": "Storage and data transfer for GitHub Packages.",
+  "codespaces": "Compute time and storage for cloud development environments."}[ascii_downcase];
+def sname: {
+  "ghec_licenses": "Enterprise Cloud user licences",
+  "ghas_licenses": "Advanced Security licences",
+  "code_security_ai_unit": "Code security AI usage",
+  "code_quality_licenses": "Code Quality licences",
+  "code_quality_ai_unit": "Code Quality AI usage",
+  "copilot_for_business": "Copilot Business seats",
+  "copilot_enterprise": "Copilot Enterprise seats",
+  "copilot_ai_unit": "Copilot AI usage",
+  "coding_agent_ai_unit": "Copilot coding agent AI usage",
+  "actions_linux": "Linux runner minutes",
+  "actions_windows": "Windows runner minutes",
+  "actions_macos": "macOS runner minutes",
+  "actions_storage": "Artifact and cache storage",
+  "git_lfs_storage": "LFS storage",
+  "git_lfs_bandwidth": "LFS bandwidth",
+  "packages_storage": "Packages storage",
+  "packages_data_transfer": "Packages data transfer",
+  "Enterprise Cloud": "Enterprise Cloud user licences",
+  "Advanced Security": "Advanced Security licences",
+  "Copilot Business": "Copilot Business seats",
+  "Copilot Enterprise": "Copilot Enterprise seats",
+  "Code Quality Licenses": "Code Quality licences"}[.];
+'
+
 # Appends the usage items of one month (optionally one org) to ROWS_FILE.
 # Returns 1 when the API has no data for that request.
 fetch_month() {
@@ -165,8 +206,9 @@ fetch_month() {
   resp=$(gh_api "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/usage/summary?${query}" \
     --api-version "${BILLING_API_VERSION}") || return 1
   [[ "${resp}" == "__404__" || "${resp}" == "__422__" ]] && return 1
-  jq -c --arg m "${month}" \
-    '.usageItems[]? | {month: $m, product, sku, gross: .grossAmount, discount: .discountAmount, net: .netAmount}' \
+  jq -c --arg m "${month}" "${JQ_NAMES}"'
+    .usageItems[]? | {month: $m, product: (.product | pname), sku, gross: .grossAmount, discount: .discountAmount, net: .netAmount,
+                      qty: .netQuantity, unit: .unitType, price: .pricePerUnit}' \
     <<< "${resp}" >> "${ROWS_FILE}"
 }
 
@@ -177,14 +219,14 @@ fetch_spend() {
   resp=$(gh_api "/enterprises/${GITHUB_ENTERPRISE}/settings/billing/usage?year=${month%-*}&month=$((10#${month#*-}))" \
     --api-version "${BILLING_API_VERSION}") || return 1
   [[ "${resp}" == "__404__" || "${resp}" == "__422__" ]] && return 1
-  jq -c --arg m "${month}" --arg orgs "${ORGS}" '
+  jq -c --arg m "${month}" --arg orgs "${ORGS}" "${JQ_NAMES}"'
     ($orgs | ascii_downcase | split(",") | map(select(. != ""))) as $only
     | [.usageItems[]? | select(.organizationName != null) | select(($only | length) == 0 or (.organizationName | ascii_downcase | IN($only[])))]
     | (group_by(.organizationName)[] | {month: $m, kind: "org", name: .[0].organizationName, net: (map(.netAmount) | add)}),
       (map(select((.repositoryName // "") != "")) | group_by([.organizationName, .repositoryName])[]
        | {month: $m, kind: "repo", name: "\(.[0].organizationName)/\(.[0].repositoryName)", net: (map(.netAmount) | add)}),
       (map(select(.organizationName == "")) | group_by([.product, .sku])[]
-       | {month: $m, kind: "ent", name: "\(.[0].product): \(.[0].sku)", net: (map(.netAmount) | add)})' \
+       | {month: $m, kind: "ent", name: ((.[0].sku | sname) // .[0].sku), net: (map(.netAmount) | add)})' \
     <<< "${resp}" >> "${SPEND_FILE}"
 }
 
@@ -358,19 +400,31 @@ def esc: tostring | @html;
            + td(.net | money) + td(if $grand > 0 then .net / $grand * 100 else null end | pct) + "</tr>" ] | join(""))
       + "</tbody></table>" end;
 
+  def uname: {"user-months": "seats", "usermonths": "seats", "ai-units": "AI units", "minutes": "minutes",
+               "gigabyte-hours": "GB-hours", "gigabytes": "GB"}[ascii_downcase] // .;
+  # money rounds to cents, which would turn $0.008 per minute into $0.01
+  def uprice: if . < 1 then "$\(.)" else money end;
   def sku_table($p):
-    "<h3>\($p.product | esc)</h3><table><caption>\($p.product | esc) net cost by SKU per month, with window totals</caption><thead><tr>"
+    "<h3>\($p.product | esc)</h3><table><caption>\($p.product | esc) net cost by SKU per month, with billed quantity and unit price, and window totals</caption><thead><tr>"
     + ([th("SKU")] + [$ms[] | th(.)] + [th("Gross"), th("Discount"), th("Total net")] | join(""))
     + "</tr></thead><tbody>"
     + ([ $rows | map(select(.product == $p.product)) | group_by(.sku)
          | map(. as $g | {sku: .[0].sku, gross: (map(.gross) | add), discount: (map(.discount) | add), net: (map(.net) | add),
-                          series: [$ms[] as $m | [$g[] | select(.month == $m) | .net] | add // 0]})
+                          series: [$ms[] as $m | [$g[] | select(.month == $m)] as $i
+                                   | {net: ([$i[].net] | add // 0), qty: ([$i[].qty // empty] | add),
+                                      unit: ([$i[].unit // empty] | first), price: ([$i[].price // empty] | first)}]})
          | sort_by(-.net)[]
-         | "<tr><th scope=\"row\">\(.sku | esc)</th>" + ([.series[] | td(money)] | join("")) + "\(td(.gross | money))\(td(.discount | money))\(td(.net | money))</tr>" ] | join(""))
+         | "<tr><th scope=\"row\">\(.sku as $c | ($c | sname) as $s | if $s then "\($s | esc) <small>\($c | esc)</small>" else ($c | esc) end)</th>"
+           + ([.series[] | td((.net | money) + (if (.qty // 0) > 0 and .price != null then "<small>\(.qty | n) \(.unit | uname | esc) × \(.price | uprice)</small>" else "" end))] | join(""))
+           + "\(td(.gross | money))\(td(.discount | money))\(td(.net | money))</tr>" ] | join(""))
     + "</tbody></table>";
 
+  def explained:
+    [ $prods[] | (.product | pdesc) as $d | select($d) | "<dt>\(.product | esc)</dt><dd>\($d | esc)</dd>" ]
+    | if length == 0 then "" else "<h2>What each billing product covers</h2><dl class=\"products\">" + join("") + "</dl>" end;
+
   ([ "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>\($heading | esc)</title>",
-     "<style>body{font-family:sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#1f2328}h1,h2,h3{color:\(if $color == "" then "#1f2328" else $color end)}header p{margin:0}table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}caption{text-align:left;font-weight:bold;margin-bottom:.4rem}th,td{border:1px solid #d0d7de;padding:.3rem .5rem;text-align:right}th[scope=row],thead th:first-child{text-align:left}thead th{background:#f6f8fa}.legend{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.3rem 1rem}.legend span{display:inline-block;width:.8rem;height:.8rem;margin-right:.3rem}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}figure{margin:0}figure svg{display:block;max-width:100%;height:auto}figcaption{text-align:center;font-size:.85rem}section{break-inside:avoid}@media print{body{margin:0}}\(if $color == "" then "" else ":root{--brand:\($color)}" end)\(".cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem;margin:1rem 0}.card{border:1px solid #d0d7de;border-radius:6px;padding:.6rem .8rem}.card .n{font-size:1.5rem;font-weight:bold}.card .l{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}.chart{margin:0}.brand{display:flex;align-items:center;gap:.6rem;font-weight:600;letter-spacing:.3em;text-transform:uppercase}.brand img{height:2rem}.eyebrow{margin-top:1rem;font-size:.75rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase}header h1{margin:.3rem 0}.note{border-left:4px solid #d0d7de;background:#f6f8fa;padding:.6rem 1rem;margin:1rem 0}.note p{margin:.3rem 0}")</style>\(if $css == "" then "" else "<style>\($css)</style>" end)</head><body>",
+     "<style>body{font-family:sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#1f2328}h1,h2,h3{color:\(if $color == "" then "#1f2328" else $color end)}header p{margin:0}table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}caption{text-align:left;font-weight:bold;margin-bottom:.4rem}th,td{border:1px solid #d0d7de;padding:.3rem .5rem;text-align:right}th[scope=row],thead th:first-child{text-align:left}thead th{background:#f6f8fa}.legend{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.3rem 1rem}.legend span{display:inline-block;width:.8rem;height:.8rem;margin-right:.3rem}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}figure{margin:0}figure svg{display:block;max-width:100%;height:auto}figcaption{text-align:center;font-size:.85rem}section{break-inside:avoid}@media print{body{margin:0}}\(if $color == "" then "" else ":root{--brand:\($color)}" end)\(".cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem;margin:1rem 0}.card{border:1px solid #d0d7de;border-radius:6px;padding:.6rem .8rem}.card .n{font-size:1.5rem;font-weight:bold}.card .l{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}.chart{margin:0}.brand{display:flex;align-items:center;gap:.6rem;font-weight:600;letter-spacing:.3em;text-transform:uppercase}.brand img{height:2rem}.eyebrow{margin-top:1rem;font-size:.75rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase}header h1{margin:.3rem 0}.note{border-left:4px solid #d0d7de;background:#f6f8fa;padding:.6rem 1rem;margin:1rem 0}.note p{margin:.3rem 0}.products dt{font-weight:bold;margin-top:.5rem}.products dd{margin:0}th small,td small{display:block;font-weight:normal;opacity:.7}td small{font-size:.75rem}")</style>\(if $css == "" then "" else "<style>\($css)</style>" end)</head><body>",
      "<header>",
      (if $logo != "" or $name != "" then "<div class=\"brand\">\(if $logo != "" then "<img class=\"logo\" src=\"\($logo)\" alt=\"\">" else "" end)\($name | esc)</div>" else "" end),
      "<div class=\"eyebrow\">GitHub Enterprise &nbsp;|&nbsp; Billing report</div>",
@@ -380,18 +434,18 @@ def esc: tostring | @html;
      "<div class=\"note\"><p>Reporting window: \($ms[0]) to \($ms[-1]), complete months only. Amounts are net USD as returned by GitHub\(if $orgs != "" then ", limited to organizations: \($orgs | esc)" else "" end).</p>",
      (if ([$prods[].product | ascii_downcase | select(test("^ghec$|enterprise|licen[cs]e"))] | length) == 0
       then "<p><strong>Enterprise Cloud licence seats:</strong> not available from the billing API for this enterprise.</p>" else "" end),
-     "</div>",
-     "<h2>Monthly cost by billing product</h2><figure class=\"chart\">", stacked, legend, "</figure>",
+     "</div>", explained,
+     "<h2>Monthly cost by billing product</h2>", "<figure class=\"chart\">", stacked, legend, "</figure>",
      "<h2>Growth</h2>",
      (if $nc >= 2 then "<p>Change in monthly net cost from \($complete[0]) to \($complete[-1]); red bars grew, green bars shrank.</p><figure class=\"chart\">" + growth + "</figure>"
       else "<p>Growth needs at least two complete months of data.</p>" end),
      (if ($spend | length) > 0 then "<h2>Top organizations and repositories</h2>" + top_table("org"; "Organization"; "Top organizations by net cost per month, ranked by window total")
       + top_table("repo"; "Repository"; "Top repositories by net cost per month, ranked by window total")
-      + (top_table("ent"; "Billing product: SKU"; "Billed to the enterprise account, not to any organization") | if . == "" then . else "<h3>Enterprise account</h3><p>Seat licences held by users outside every organization, so they are left out of the organization ranking above.</p>" + . end) else "" end),
+      + (top_table("ent"; "Charge"; "Billed to the enterprise account, not to any organization") | if . == "" then . else "<h3>Enterprise account</h3><p>Seat licences held by users outside every organization, so they are left out of the organization ranking above.</p>" + . end) else "" end),
      "<h2>Each billing product over time</h2><div class=\"grid\">",
      ([ $prods | to_entries[] | line(.value; .key) ] | join("")),
      "</div><h2>Summary</h2>", summary_table,
-     "<h2>Detail by SKU</h2>", ([ $prods[] | sku_table(.) ] | join("")),
+     "<h2>Detail by SKU</h2><p>Under each monthly amount is the billed quantity and unit price. Seats are billed per user per month and prorated by day, so seat counts can be fractional. Each seat SKU is billed separately: a user with Advanced Security or Copilot also holds a GitHub Enterprise Cloud seat. Advanced Security and Code Quality seats count active committers (people who pushed a commit in the last 90 days to a repository with the feature enabled), so the seat count changes as people start and stop committing to those repositories.</p>", ([ $prods[] | sku_table(.) ] | join("")),
      "<footer><p>Generated \($generated). Data as returned by GitHub; it may differ from your invoice.</p>\(if $footer != "" then "<p>\($footer | esc)</p>" else "" end)</footer></body></html>" ] | join("\n"))
 '
 
@@ -401,7 +455,7 @@ jq -rs --argjson months "${MONTHS_JSON}" \
   --argjson palette "${PALETTE_JSON}" --arg css "${CSS_TEXT}" --slurpfile spend "${SPEND_FILE}" \
   --arg color "${BRAND_COLOR}" --arg name "${BRAND_NAME}" --arg footer "${BRAND_FOOTER}" --arg logo "${LOGO_URI}" \
   --arg generated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  "${JQ_REPORT}" "${ROWS_FILE}" > "${BASE}.html"
+  "${JQ_NAMES}${JQ_REPORT}" "${ROWS_FILE}" > "${BASE}.html"
 print_success "Wrote ${BASE}.html and ${BASE}.csv"
 
 # Prints the first available PDF renderer's command, or nothing.
