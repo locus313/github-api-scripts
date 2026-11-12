@@ -12,7 +12,8 @@ payload="$(cat)"
 tool_name="$(printf '%s' "${payload}" | jq -r '.toolName // ""')"
 [[ "${tool_name}" == "bash" ]] || exit 0
 
-command="$(printf '%s' "${payload}" | jq -r '.toolArgs // "{}" | fromjson | .command // ""')"
+# toolArgs arrives as a JSON string on some hosts and as an object on others
+command="$(printf '%s' "${payload}" | jq -r '.toolArgs // {} | if type == "string" then fromjson else . end | .command // ""')"
 
 # Heredoc redirected into a file or tee: cat > f <<EOF, tee f <<'EOF', cat >> f <<-EOF
 if printf '%s' "${command}" | grep -Eq '(>|tee)[^<|;&]*<<-?[[:space:]]*['\''"\\]?[A-Za-z_]'; then
