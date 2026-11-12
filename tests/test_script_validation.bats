@@ -578,6 +578,135 @@ _run_script() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# reporting/github-enterprise-billing-report
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@test "github-enterprise-billing-report: exits 1 when GITHUB_ENTERPRISE is not set" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; unset GITHUB_ENTERPRISE;"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-enterprise-billing-report: exits 1 when GITHUB_TOKEN is not set" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "unset GITHUB_TOKEN; export GITHUB_ENTERPRISE=my-ent;"
+  [ "$status" -eq 1 ]
+}
+
+@test "github-enterprise-billing-report: --help exits 0" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "" "--help"
+  [ "$status" -eq 0 ]
+}
+
+@test "github-enterprise-billing-report: unknown option exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent;" "--unknown-flag"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Unknown option"* ]]
+}
+
+@test "github-enterprise-billing-report: MONTHS above 24 exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=25;"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"MONTHS must be"* ]]
+}
+
+@test "github-enterprise-billing-report: non-numeric MONTHS exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=foo;"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"MONTHS must be"* ]]
+}
+
+@test "github-enterprise-billing-report: --no-pdf is recognised (fails at token check, not arg parse)" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "unset GITHUB_TOKEN; export GITHUB_ENTERPRISE=my-ent;" "--no-pdf"
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"Unknown option"* ]]
+}
+
+@test "github-enterprise-billing-report: writes HTML and CSV with each billing product" {
+  _mock_curl_200
+  export MOCK_CURL_BODY='{"usageItems":[{"product":"actions","sku":"actions_linux","grossAmount":12.5,"discountAmount":2.5,"netAmount":10,"organizationName":"acme","repositoryName":"api"},{"product":"copilot","sku":"copilot_ai_credits","grossAmount":30,"discountAmount":0,"netAmount":30,"organizationName":"other"},{"product":"copilot","sku":"copilot_business","grossAmount":5,"discountAmount":0,"netAmount":5,"organizationName":""}]}'
+  local dir="${BATS_TEST_TMPDIR}/reports"
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=2; export REPORT_DIR='${dir}';" "--no-pdf"
+  [ "$status" -eq 0 ]
+  html=$(ls "${dir}"/billing-report-my-ent-*.html)
+  grep -q "actions" "${html}"
+  grep -q "copilot" "${html}"
+  grep -q "not available from the billing API" "${html}"
+  grep -q "Top organizations" "${html}"
+  grep -q 'acme/api</th><td>$10.00</td><td>$10.00</td><td>$20.00</td>' "${html}"
+  grep -q 'copilot: copilot_business</th><td>$5.00</td><td>$5.00</td><td>$10.00</td>' "${html}"
+  grep -q 'actions_linux</th><td>$10.00</td><td>$10.00</td><td>$25.00</td><td>$5.00</td><td>$20.00</td>' "${html}"
+  grep -q '"actions"' "${dir}"/billing-report-my-ent-*.csv
+}
+
+@test "github-enterprise-billing-report: ORGS limits the top organizations" {
+  _mock_curl_200
+  export MOCK_CURL_BODY='{"usageItems":[{"product":"actions","sku":"actions_linux","grossAmount":10,"discountAmount":0,"netAmount":10,"organizationName":"acme"},{"product":"actions","sku":"actions_linux","grossAmount":5,"discountAmount":0,"netAmount":5,"organizationName":"other"}]}'
+  local dir="${BATS_TEST_TMPDIR}/reports"
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=1; export ORGS=acme; export REPORT_DIR='${dir}';" "--no-pdf"
+  [ "$status" -eq 0 ]
+  html=$(ls "${dir}"/billing-report-my-ent-*.html)
+  grep -q ">acme<" "${html}"
+  ! grep -q ">other<" "${html}"
+}
+
+@test "github-enterprise-billing-report: invalid BRAND_COLOR exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export BRAND_COLOR=blue;"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"BRAND_COLOR must be"* ]]
+}
+
+@test "github-enterprise-billing-report: missing BRAND_LOGO file exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export BRAND_LOGO=/nonexistent/logo.png;"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"BRAND_LOGO file not found"* ]]
+}
+
+@test "github-enterprise-billing-report: invalid BRAND_PALETTE exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export BRAND_PALETTE='#0969da,red';"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"BRAND_PALETTE must be"* ]]
+}
+
+@test "github-enterprise-billing-report: missing BRAND_CSS file exits 1" {
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export BRAND_CSS=/nonexistent/theme.css;"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"BRAND_CSS file not found"* ]]
+}
+
+@test "github-enterprise-billing-report: BRAND_CSS containing markup exits 1" {
+  printf 'body{}</style><script>x</script>' > "${BATS_TEST_TMPDIR}/theme.css"
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export BRAND_CSS='${BATS_TEST_TMPDIR}/theme.css';"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"BRAND_CSS must not contain markup"* ]]
+}
+
+@test "github-enterprise-billing-report: GHEC product suppresses the missing-licence note" {
+  _mock_curl_200
+  export MOCK_CURL_BODY='{"usageItems":[{"product":"GHEC","sku":"ghec_seat","grossAmount":21,"discountAmount":0,"netAmount":21}]}'
+  local dir="${BATS_TEST_TMPDIR}/reports"
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=1; export REPORT_DIR='${dir}';" "--no-pdf"
+  [ "$status" -eq 0 ]
+  ! grep -q "licence seats" "${dir}"/billing-report-my-ent-*.html
+}
+
+@test "github-enterprise-billing-report: applies branding to the HTML" {
+  _mock_curl_200
+  export MOCK_CURL_BODY='{"usageItems":[{"product":"actions","sku":"actions_linux","grossAmount":12.5,"discountAmount":2.5,"netAmount":10}]}'
+  local dir="${BATS_TEST_TMPDIR}/reports"
+  printf '<svg xmlns="http://www.w3.org/2000/svg"/>' > "${BATS_TEST_TMPDIR}/logo.svg"
+  printf '.acme-theme{color:var(--brand)}' > "${BATS_TEST_TMPDIR}/theme.css"
+  _run_script "${REPO_ROOT}/reporting/github-enterprise-billing-report/github-enterprise-billing-report.sh" "export GITHUB_TOKEN=fake; export GITHUB_ENTERPRISE=my-ent; export MONTHS=2; export REPORT_DIR='${dir}'; export BRAND_LOGO='${BATS_TEST_TMPDIR}/logo.svg'; export BRAND_NAME='Acme'; export BRAND_TITLE='Acme Corp spend'; export BRAND_COLOR='#0969da'; export BRAND_FOOTER='Prepared by Platform'; export BRAND_PALETTE='#abcdef,#123456'; export BRAND_CSS='${BATS_TEST_TMPDIR}/theme.css';" "--no-pdf"
+  [ "$status" -eq 0 ]
+  html=$(ls "${dir}"/billing-report-my-ent-*.html)
+  grep -q "Acme Corp spend" "${html}"
+  grep -q "#0969da" "${html}"
+  grep -q "Prepared by Platform" "${html}"
+  grep -q "data:image/svg+xml;base64," "${html}"
+  grep -q ">Acme<" "${html}"
+  grep -q "#abcdef" "${html}"
+  grep -q ".acme-theme" "${html}"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # enterprise/github-increase-copilot-user-budget
 # ═══════════════════════════════════════════════════════════════════════════════
 

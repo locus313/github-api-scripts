@@ -1,0 +1,81 @@
+name: 'Enterprise Billing Report'
+description: 'Generates HTML, PDF and CSV billing cost reports per billing product for a GitHub Enterprise, with month-over-month growth charts'
+inputs:
+  github-token:
+    description: 'PAT with manage_billing:enterprise scope. Cannot be the built-in GITHUB_TOKEN.'
+    required: true
+  enterprise:
+    description: 'GitHub Enterprise slug'
+    required: true
+  months:
+    description: 'Number of complete months to report, excluding the current month (1–24)'
+    required: false
+    default: '3'
+  orgs:
+    description: 'Comma-separated list of organizations to limit the report to (default: whole enterprise)'
+    required: false
+    default: ''
+  report-dir:
+    description: 'Directory the report files are written to'
+    required: false
+    default: './reports'
+  no-pdf:
+    description: 'Skip PDF generation'
+    required: false
+    default: 'false'
+  api-url-prefix:
+    description: 'GitHub API base URL'
+    required: false
+    default: 'https://api.github.com'
+  brand-logo:
+    description: 'Path to a .png, .jpg, .gif or .svg logo embedded in the report'
+    required: false
+    default: ''
+  brand-name:
+    description: 'Wordmark text shown above the report title'
+    required: false
+    default: ''
+  brand-title:
+    description: 'Report title (default: GitHub Enterprise billing report: <enterprise>)'
+    required: false
+    default: ''
+  brand-color:
+    description: 'Hex accent color such as #0969da for headings and the first chart color'
+    required: false
+    default: ''
+  brand-footer:
+    description: 'Extra line of text in the report footer'
+    required: false
+    default: ''
+  brand-palette:
+    description: 'Comma-separated hex colors replacing the chart palette'
+    required: false
+    default: ''
+  brand-css:
+    description: 'Path to a CSS file applied after the default report styles'
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Generate billing report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_ENTERPRISE: ${{ inputs.enterprise }}
+        MONTHS: ${{ inputs.months }}
+        ORGS: ${{ inputs.orgs }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        API_URL_PREFIX: ${{ inputs.api-url-prefix }}
+        NO_PDF: ${{ inputs.no-pdf }}
+        BRAND_LOGO: ${{ inputs.brand-logo }}
+        BRAND_NAME: ${{ inputs.brand-name }}
+        BRAND_TITLE: ${{ inputs.brand-title }}
+        BRAND_COLOR: ${{ inputs.brand-color }}
+        BRAND_FOOTER: ${{ inputs.brand-footer }}
+        BRAND_PALETTE: ${{ inputs.brand-palette }}
+        BRAND_CSS: ${{ inputs.brand-css }}
+      run: |
+        ARGS=()
+        [[ "${NO_PDF}" == "true" ]] && ARGS+=(--no-pdf)
+        "${{ github.action_path }}/github-enterprise-billing-report.sh" "${ARGS[@]}"

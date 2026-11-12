@@ -53,6 +53,12 @@ EOF"
   [ -z "$output" ]
 }
 
+@test "hook: accepts toolArgs as an object" {
+  run bash "${HOOK}" <<<'{"toolName":"bash","toolArgs":{"command":"cat > f <<EOF\nx\nEOF"}}'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]
+}
+
 @test "hook: ignores other tools" {
   _run_hook edit "cat > f <<EOF"
   [ -z "$output" ]
