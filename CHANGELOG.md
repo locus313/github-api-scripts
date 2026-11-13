@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This changelog is automatically maintained by [Release Please](https://github.com/googleapis/release-please) using [Conventional Commits](https://www.conventionalcommits.org/). Do not edit the versioned sections manually.
 
+## [1.10.0](https://github.com/locus313/github-api-scripts/compare/v1.9.0...v1.10.0) (2026-11-13)
+
+
+### Features
+
+* improve billing report SKU names, number formatting and layout ([#71](https://github.com/locus313/github-api-scripts/issues/71)) ([8ac25d2](https://github.com/locus313/github-api-scripts/commit/8ac25d25c4be4ef289f2f174a0d2b31899efb7c0))
+
 ## [1.9.0](https://github.com/locus313/github-api-scripts/compare/v1.8.0...v1.9.0) (2026-11-12)
 
 
