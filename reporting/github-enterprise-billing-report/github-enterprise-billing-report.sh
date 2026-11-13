@@ -172,7 +172,14 @@ def pdesc: {
   "git lfs": "Storage and download bandwidth for files tracked with Git Large File Storage.",
   "packages": "Storage and data transfer for GitHub Packages.",
   "codespaces": "Compute time and storage for cloud development environments."}[ascii_downcase];
-def sname: {
+def runner_sku:
+  capture("^actions_(?<os>linux|windows|macos)(?<cores>_[0-9]+_core)?(?<rest>(_[a-z0-9]+)*)$")
+  | ({"linux": "Linux", "windows": "Windows", "macos": "macOS"}[.os]) as $os
+  | ((.cores // "") | ltrimstr("_") | gsub("_core$"; "")) as $c
+  | [$os, (if $c == "" then "" else "\($c)-core" end),
+     (.rest | split("_") | map(select(. != "") | {"arm": "Arm", "gpu": "GPU", "xl": "XL"}[.] // (.[:1] | ascii_upcase) + .[1:]) | join(" "))]
+  | map(select(. != "")) | join(" ") + " runner minutes";
+def sname: ({
   "ghec_licenses": "Enterprise Cloud user licences",
   "ghas_licenses": "Advanced Security licences",
   "code_security_ai_unit": "Code security AI usage",
@@ -181,6 +188,7 @@ def sname: {
   "copilot_for_business": "Copilot Business seats",
   "copilot_enterprise": "Copilot Enterprise seats",
   "copilot_ai_unit": "Copilot AI usage",
+  "copilot_premium_request": "Copilot premium requests",
   "coding_agent_ai_unit": "Copilot coding agent AI usage",
   "actions_linux": "Linux runner minutes",
   "actions_windows": "Windows runner minutes",
@@ -194,7 +202,9 @@ def sname: {
   "Advanced Security": "Advanced Security licences",
   "Copilot Business": "Copilot Business seats",
   "Copilot Enterprise": "Copilot Enterprise seats",
-  "Code Quality Licenses": "Code Quality licences"}[.];
+  "Copilot Premium Request": "Copilot premium requests",
+  "Copilot AI Credits": "Copilot AI usage",
+  "Code Quality Licenses": "Code Quality licences"}[.]) // (try runner_sku catch null) // null;
 '
 
 # Appends the usage items of one month (optionally one org) to ROWS_FILE.
@@ -223,7 +233,7 @@ fetch_spend() {
     ($orgs | ascii_downcase | split(",") | map(select(. != ""))) as $only
     | [.usageItems[]? | select(.organizationName != null) | select(($only | length) == 0 or (.organizationName | ascii_downcase | IN($only[])))]
     | (group_by(.organizationName)[] | {month: $m, kind: "org", name: .[0].organizationName, net: (map(.netAmount) | add)}),
-      (map(select((.repositoryName // "") != "")) | group_by([.organizationName, .repositoryName])[]
+      (map(select((.repositoryName // "") != "" and .organizationName != "")) | group_by([.organizationName, .repositoryName])[]
        | {month: $m, kind: "repo", name: "\(.[0].organizationName)/\(.[0].repositoryName)", net: (map(.netAmount) | add)}),
       (map(select(.organizationName == "")) | group_by([.product, .sku])[]
        | {month: $m, kind: "ent", name: ((.[0].sku | sname) // .[0].sku), net: (map(.netAmount) | add)})' \
@@ -274,11 +284,16 @@ jq -rs '
 
 # shellcheck disable=SC2016  # jq program, not shell
 JQ_REPORT='
+def commas: tostring | [match("\\d{1,3}(?=(\\d{3})*$)"; "g").string] | join(",");
 def n: (. * 10 | round) / 10;
+def qty:
+  n as $v
+  | ($v | fabs | tostring | split(".")) as $p
+  | (if $v < 0 then "-" else "" end) + ($p[0] | commas) + (if ($p | length) > 1 then "." + $p[1] else "" end);
 def money:
   (. * 100 | round) as $c
   | ($c | fabs) as $a
-  | (($a / 100 | floor) | tostring) as $d
+  | (($a / 100 | floor) | commas) as $d
   | (($a % 100) | tostring | if length < 2 then "0" + . else . end) as $f
   | (if $c < 0 then "-$" else "$" end) + $d + "." + $f;
 def pct: if . == null then "n/a" else ((. * 10 | round) / 10 | tostring) + "%" end;
@@ -415,7 +430,7 @@ def esc: tostring | @html;
                                       unit: ([$i[].unit // empty] | first), price: ([$i[].price // empty] | first)}]})
          | sort_by(-.net)[]
          | "<tr><th scope=\"row\">\(.sku as $c | ($c | sname) as $s | if $s then "\($s | esc) <small>\($c | esc)</small>" else ($c | esc) end)</th>"
-           + ([.series[] | td((.net | money) + (if (.qty // 0) > 0 and .price != null then "<small>\(.qty | n) \(.unit | uname | esc) × \(.price | uprice)</small>" else "" end))] | join(""))
+           + ([.series[] | td((.net | money) + (if (.qty // 0) > 0 and .price != null then "<small>\(.qty | qty) \(.unit | uname | esc) × \(.price | uprice)</small>" else "" end))] | join(""))
            + "\(td(.gross | money))\(td(.discount | money))\(td(.net | money))</tr>" ] | join(""))
     + "</tbody></table>";
 
@@ -429,7 +444,7 @@ def esc: tostring | @html;
      (if $logo != "" or $name != "" then "<div class=\"brand\">\(if $logo != "" then "<img class=\"logo\" src=\"\($logo)\" alt=\"\">" else "" end)\($name | esc)</div>" else "" end),
      "<div class=\"eyebrow\">GitHub Enterprise &nbsp;|&nbsp; Billing report</div>",
      "<h1>\($heading | esc)</h1>",
-     "<p class=\"sub\">\($enterprise | esc) &nbsp;|&nbsp; \($ms[0]) to \($ms[-1]) &nbsp;|&nbsp; Generated \($generated)</p></header>",
+     "<p class=\"sub\">\($enterprise | esc) &nbsp;|&nbsp; \($ms[0]) to \($ms[-1]) &nbsp;|&nbsp; Generated \($generated)</p></header><main>",
      "<h2>Overview</h2>", cards,
      "<div class=\"note\"><p>Reporting window: \($ms[0]) to \($ms[-1]), complete months only. Amounts are net USD as returned by GitHub\(if $orgs != "" then ", limited to organizations: \($orgs | esc)" else "" end).</p>",
      (if ([$prods[].product | ascii_downcase | select(test("^ghec$|enterprise|licen[cs]e"))] | length) == 0
@@ -441,12 +456,12 @@ def esc: tostring | @html;
       else "<p>Growth needs at least two complete months of data.</p>" end),
      (if ($spend | length) > 0 then "<h2>Top organizations and repositories</h2>" + top_table("org"; "Organization"; "Top organizations by net cost per month, ranked by window total")
       + top_table("repo"; "Repository"; "Top repositories by net cost per month, ranked by window total")
-      + (top_table("ent"; "Charge"; "Billed to the enterprise account, not to any organization") | if . == "" then . else "<h3>Enterprise account</h3><p>Seat licences held by users outside every organization, so they are left out of the organization ranking above.</p>" + . end) else "" end),
+      + (top_table("ent"; "Charge"; "Billed to the enterprise account, not to any organization") | if . == "" then . else "<h3>Enterprise account</h3><p>Charges GitHub returned with no organization, so they are left out of the organization ranking above. Mostly seat licences held by users outside every organization. Older months can also include usage that GitHub returned without organization detail, so a charge here can shrink over time as GitHub attributes it to organizations.</p>" + . end) else "" end),
      "<h2>Each billing product over time</h2><div class=\"grid\">",
      ([ $prods | to_entries[] | line(.value; .key) ] | join("")),
      "</div><h2>Summary</h2>", summary_table,
      "<h2>Detail by SKU</h2><p>Under each monthly amount is the billed quantity and unit price. Seats are billed per user per month and prorated by day, so seat counts can be fractional. Each seat SKU is billed separately: a user with Advanced Security or Copilot also holds a GitHub Enterprise Cloud seat. Advanced Security and Code Quality seats count active committers (people who pushed a commit in the last 90 days to a repository with the feature enabled), so the seat count changes as people start and stop committing to those repositories.</p>", ([ $prods[] | sku_table(.) ] | join("")),
-     "<footer><p>Generated \($generated). Data as returned by GitHub; it may differ from your invoice.</p>\(if $footer != "" then "<p>\($footer | esc)</p>" else "" end)</footer></body></html>" ] | join("\n"))
+     "</main><footer><p>Generated \($generated). Data as returned by GitHub; it may differ from your invoice.</p>\(if $footer != "" then "<p>\($footer | esc)</p>" else "" end)</footer></body></html>" ] | join("\n"))
 '
 
 jq -rs --argjson months "${MONTHS_JSON}" \
